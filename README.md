@@ -1,0 +1,47 @@
+# Projeto B — base funcional, com possibilidade de evoluir para A
+
+> Nível de trabalho atual: B. Antes da entrega, este cabeçalho será atualizado para A se todas as evidências A exigidas estiverem implementadas e demonstráveis.
+
+## Ampara
+
+O Ampara é uma plataforma de telemetria e manutenção preditiva para veículos. O objetivo desta entrega é resolver um problema real com uma fatia pequena, executável e testada, e evoluí-la com práticas de engenharia Full Cycle.
+
+## Escopo da primeira versão
+
+O primeiro fluxo recebe uma leitura de telemetria sintética, valida os dados, persiste a leitura no PostgreSQL e permite consultá-la pela API.
+
+O primeiro recorte não depende do carro, de um adaptador ELM327, de diagnóstico por áudio, de modelo preditivo ou de interface gráfica. A documentação interativa da API será usada para demonstrar as rotas. A integração com o veículo e qualquer interface visual poderão ser consideradas depois que o fluxo estiver confiável.
+
+### Critérios de aceite
+
+- Uma leitura válida é aceita e persistida.
+- Uma leitura persistida pode ser consultada pela API.
+- Dados inválidos e credenciais ausentes ou inválidas recebem respostas previsíveis.
+- Reenvios duplicados seguem uma política definida e não criam inconsistências.
+- Testes com asserções cobrem os comportamentos válidos e inválidos relevantes.
+- O ambiente pode ser iniciado e validado seguindo as instruções deste README.
+
+## Stack proposta
+
+- Python, FastAPI e Pydantic para API e contrato OpenAPI.
+- PostgreSQL, SQLModel e Alembic para persistência e migrações.
+- pytest para testes.
+- Docker Compose para execução local.
+- GitHub Actions como proposta inicial de CI, pendente de confirmação do requisito do curso sobre Jenkins.
+
+k6, Prometheus, Grafana e Terraform entram depois do fluxo principal, conforme as etapas e critérios descritos em [`sdlc/milestones.md`](sdlc/milestones.md).
+
+## Como executar
+
+**Ainda indisponível:** a implementação da aplicação e o ambiente Docker Compose não foram criados. As instruções de instalação, inicialização e testes serão preenchidas e verificadas junto com a primeira versão funcional.
+
+## Documentação do projeto
+
+- [Plano de desenvolvimento e critérios de aceite](sdlc/milestones.md)
+- [Arquitetura, stack e pipeline](sdlc/architecture-and-delivery.md)
+- [Requisitos e entregáveis do projeto final](specs/development-project.md)
+- [Requisitos de segurança](sdlc/security.md)
+
+## Entrega do curso
+
+Antes da entrega, atualizar o nível declarado na primeira linha conforme as evidências concluídas e incluir as instruções reproduzíveis, o link da CI verde, `docs/desempenho.md`, `CONTRIBUTORS.md` e `docs/ia.md`, conforme aplicável.

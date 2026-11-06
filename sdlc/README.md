@@ -1,23 +1,36 @@
-# SDLC do Ampara
+# Como desenvolver o Ampara
 
-Este diretório documenta como o Ampara será desenhado, construído, testado, implantado e operado. Segurança é um requisito de cada etapa, não uma tarefa para o final do projeto.
+Este diretório descreve um processo incremental para transformar o Ampara em um projeto Full Cycle. A regra de trabalho é simples: primeiro entregar um fluxo útil, confiável e verificável; depois acrescentar arquitetura, desempenho e operação conforme os critérios do curso.
 
-## Documentos
+## Fonte de verdade de cada assunto
 
-- [Requisitos do projeto](../specs/development-project.md): escopo e exigências do programa; esta é a fonte do que o projeto deve entregar.
-- [Arquitetura e ciclo de entrega](architecture-and-delivery.md): componentes, fronteiras, estrutura do repositório, fluxo de dados, Jenkins, Terraform, testes e roadmap incremental.
-- [Segurança](security.md): modelo inicial de ameaças, controles obrigatórios, verificações no pipeline e critérios mínimos para cada entrega.
-- [Papéis de agentes Codex](agent-roles.md): responsabilidades sugeridas, limites de atuação, entregas e como transformar os papéis em agentes customizados.
-- [Marcos e progresso](milestones.md): registro datado do que foi concluído e critérios do próximo marco.
+- [`specs/development-project.md`](../specs/development-project.md): requisitos do curso, níveis, prazos e materiais de entrega.
+- [`architecture-and-delivery.md`](architecture-and-delivery.md): fluxo funcional, arquitetura escolhida e desenho do pipeline.
+- [`milestones.md`](milestones.md): ordem de execução, critérios de aceite e estado atual.
+- [`security.md`](security.md): requisitos e verificações de segurança aplicáveis a cada etapa.
+- [`agent-roles.md`](agent-roles.md): referência opcional para dividir trabalho entre agentes; não é requisito do produto.
 
-## Princípios de trabalho
+Cada requisito deve ter uma fonte principal. Os outros documentos devem apontar para ela, sem copiar a mesma lista.
 
-1. Entregar fatias pequenas e demonstráveis, mantendo os testes como especificação do comportamento.
-2. Separar interface, API, persistência e predição por responsabilidade; não criar serviços distribuídos sem uma necessidade concreta.
-3. Projetar para falhas: leituras inválidas, perda de conectividade, indisponibilidade de dependências e recuperação de backup.
-4. Aplicar menor privilégio, coletar o mínimo de dados necessário e manter segredos fora do código e do Git.
-5. Toda mudança de aplicação, modelo ou infraestrutura passa por revisão e verificações automatizadas adequadas ao risco.
+## Fluxo de desenvolvimento
 
-## Como usar este plano
+Para cada fatia:
 
-O roadmap define a sequência de aprendizado, não exige implementar tudo de uma vez. Em cada marco, escolha uma entrega pequena, documente a decisão, escreva os testes do comportamento esperado e só então implemente. Os controles de segurança mínimos daquele marco são parte dos critérios de conclusão.
+1. Descrever o problema e quem se beneficia.
+2. Definir uma entrada, uma saída e critérios observáveis de aceite.
+3. Registrar apenas as decisões que limitam a implementação, em um ADR quando houver alternativas relevantes.
+4. Criar ou atualizar testes que expressem os critérios, incluindo pelo menos um caso inválido relevante.
+5. Implementar a menor mudança que completa o fluxo.
+6. Executar os comandos de validação documentados e corrigir falhas antes de começar outra fatia.
+7. Revisar segurança, documentação e impacto operacional proporcionais à mudança.
+8. Mostrar o resultado e registrar o que foi concluído, o que ficou pendente e a próxima decisão.
+
+Uma fatia só está pronta quando funciona em ambiente reproduzível, passa nos testes pertinentes, tem instruções atualizadas e não introduz segredo no Git. Planejamento, diagramas e código sem execução demonstrável não contam como fluxo concluído.
+
+## Princípios
+
+- Começar pelo menor fluxo vertical que resolve uma necessidade real.
+- Preferir um monólito modular; só separar processos ou serviços quando houver motivo medido ou requisito explícito.
+- Manter os mesmos comandos de validação disponíveis localmente e no pipeline.
+- Tratar dados de teste como sintéticos, segredos fora do repositório e segurança como parte dos critérios desde a primeira fatia.
+- Não adicionar Terraform, Grafana, filas, cache, frontend ou modelos ao caminho crítico antes de a fatia funcional estar confiável.

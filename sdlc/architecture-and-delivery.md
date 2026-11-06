@@ -1,143 +1,81 @@
-# Arquitetura e ciclo de entrega do Ampara
+# Arquitetura e entrega
 
-## Objetivo
+Este documento descreve a arquitetura-alvo mínima e o fluxo do artefato até a execução. A sequência de implementação e os critérios por etapa estão em [`milestones.md`](milestones.md); controles de segurança estão em [`security.md`](security.md).
 
-Construir uma plataforma de telemetria automotiva e manutenção preditiva que também demonstre engenharia Full Cycle: modelagem, implementação, testes, empacotamento, infraestrutura como código, CI/CD e operação. A arquitetura começa como um monólito modular e evolui somente quando volume, disponibilidade ou autonomia de deploy justificarem novas fronteiras.
+## Direção arquitetural
 
-## Arquitetura inicial
+Começar com um monólito modular em Python. O fluxo inicial é uma leitura sintética de telemetria que entra pela API, passa por validação de domínio, é persistida e pode ser consultada. A stack proposta é:
 
-| Componente | Tecnologia inicial | Responsabilidade | Testes de aceitação técnica |
-|---|---|---|---|
-| Coletor veicular | Python e biblioteca serial compatível com ELM327 | Ler PIDs autorizados, validar/unificar valores, carimbar horário e manter fila local limitada durante perda de rede | Unidade: parsing, conversões, entradas inválidas e fila; integração com adaptador simulado |
-| API de ingestão | Python com FastAPI | Autenticar o dispositivo, validar lotes, aplicar autorização por veículo, limitar requisições e persistir telemetria | Unidade: regras e validação; integração: HTTP, autenticação, autorização e banco |
-| Persistência | PostgreSQL | Guardar contas/veículos, telemetria, previsões e metadados de modelo com integridade referencial | Integração: migrações, constraints, isolamento entre usuários e operações de leitura/escrita |
-| Predição | Python com scikit-learn, inicialmente dentro do backend ou como worker do mesmo repositório | Versionar preprocessing/modelo, produzir previsões reproduzíveis e guardar a versão usada | Unidade: preprocessing e saídas de referência; integração: carregamento do artefato e pipeline de previsão |
-| Painel web | React com TypeScript | Apresentar veículos, telemetria e previsões consumindo a API, sem conexão direta ao banco | Unidade/componente: estados e visualizações; integração: contrato API; ponta a ponta para fluxos críticos |
-| Infraestrutura | Terraform com módulos próprios | Criar e configurar rede, runtime, banco e armazenamento nos ambientes remotos | `fmt`, `validate`, análise estática, plano revisável e testes de módulos quando aplicável |
-| Entrega contínua | Jenkins Pipeline declarativo com `Jenkinsfile` no Git | Validar mudanças, construir artefatos e promover releases com gates | Pipeline: comprovar que verificações bloqueiam falhas e deploy de produção requer aprovação |
+- **API e contrato:** Python + FastAPI + Pydantic; OpenAPI gerado pela API.
+- **Persistência:** PostgreSQL + SQLModel + Alembic para migrações.
+- **Qualidade:** pytest para testes unitários e de integração; HTTPX/TestClient para exercitar a API.
+- **Ambiente local:** Docker Compose.
+- **Desempenho:** k6.
+- **Métricas e dashboards:** Prometheus + Grafana, depois do fluxo principal estar funcional.
+- **Infraestrutura:** Terraform, com provedor cloud escolhido quando houver ambiente e orçamento definidos.
+- **CI:** GitHub Actions é a opção inicial por corresponder ao caminho `.github/workflows/ci.yml` do material final; confirmar com o professor se isso satisfaz a exigência geral de Jenkins. Manter um único pipeline canônico.
 
-FastAPI publica um contrato OpenAPI que pode ser usado para gerar um cliente TypeScript, reduzindo divergência entre a API Python e o frontend. Os dados que chegam pela rede também precisam de validação em runtime; tipos TypeScript ajudam durante o desenvolvimento, mas não validam o payload recebido por si só.
-
-## Fronteiras e fluxo de dados
+Não incluir frontend na primeira fatia; a API e o fluxo demonstrável são suficientes para estabelecer o domínio. A stack é uma proposta, não um motivo para reescrever um componente já funcional. Se o projeto-base escolhido já trouxer uma opção equivalente, registrar a decisão e reaproveitá-la. Mudanças que alterem uma decisão importante devem ser registradas em ADR.
 
 ```text
-ELM327 → Coletor Python → HTTPS → API FastAPI → PostgreSQL
-                                      ↑             ↓
-                              React + TypeScript ← previsão
-                                      ↑             ↑
-                                API/consultas   módulo Python/worker
+Gerador/Coletor simulado → API → regras de telemetria → persistência PostgreSQL
+                                                ↓
+                                         consulta pela API
 ```
 
-1. O coletor lê apenas PIDs necessários e permitidos. Para desenvolvimento e testes, oferece adaptador simulado para não depender do carro.
-2. O coletor valida a leitura, adiciona identificador pseudônimo do veículo, horário e unidade canônica. Se offline, guarda uma fila local com tamanho e tempo de retenção limitados; reenvios usam identificador idempotente.
-3. A API exige transporte HTTPS e identidade de dispositivo, valida tamanho/formato/intervalo das leituras, verifica que o dispositivo só pode enviar dados do veículo vinculado e grava em transação.
-4. O banco conserva eventos e índices úteis. Uma fila em nuvem não faz parte do primeiro MVP; será considerada quando taxa, disponibilidade ou desacoplamento forem requisitos comprovados.
-5. O módulo de predição consome dados persistidos e produz resultado com `model_version`, horário e referência aos dados usados. Uma previsão não deve ser apresentada como diagnóstico ou instrução de segurança veicular.
-6. O painel consulta a API autenticada. Não acessa diretamente o banco nem contém segredos de backend no bundle do navegador.
+### Responsabilidades previstas
 
-## Estrutura do repositório
+- **API:** valida formato e autenticação, chama regras de domínio e converte resultados em respostas HTTP.
+- **Telemetria:** define evento, unidades, PIDs permitidos, validação sem dependência de HTTP ou banco e política de duplicatas.
+- **Persistência:** grava e consulta eventos, mantendo restrições e transações no banco.
+- **Coletor simulado:** fornece leituras sintéticas reproduzíveis para desenvolvimento e testes; não depende de hardware.
 
-```text
-.
-├── sdlc/                         # Arquitetura, segurança, decisões e roadmap
-├── src/
-│   ├── collector/                # Coletor e adaptadores real/simulado
-│   ├── backend/                   # API, domínio, persistência e predição
-│   └── frontend/                 # React + TypeScript
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   ├── component/
-│   └── e2e/
-├── deploy/
-│   ├── compose.yaml               # Execução e dependências locais
-│   └── terraform/
-│       ├── modules/
-│       │   ├── network/
-│       │   ├── app_runtime/
-│       │   ├── database/
-│       │   └── object_storage/
-│       └── envs/
-│           ├── staging/
-│           └── production/
-├── Jenkinsfile
-└── .gitignore
-```
+Essas são fronteiras de responsabilidade, não uma obrigação de criar quatro serviços ou quatro camadas artificiais. O domínio fica dentro de um processo até existir razão concreta para distribuí-lo. Painel, worker assíncrono, ML, cache, fila gerenciada e integração com ELM327 físico são posteriores ao primeiro fluxo.
 
-Esta é uma estrutura-alvo, não uma exigência de mover arquivos agora. `compose.yaml` cobre desenvolvimento local e ambientes de teste. Terraform cobre ambientes remotos, inicialmente staging e produção. Busque paridade entre staging e produção: use os mesmos componentes, funcionalidades, versões e tipos de conexão, e promova a mesma imagem imutável entre ambientes. Os endpoints, credenciais, variáveis específicas, dados e capacidade são próprios de cada ambiente; staging não usa credenciais nem dados reais de produção. Evite diferenças de feature flags que façam staging executar um caminho funcional diferente do release de produção. Não simule um ambiente cloud local com Terraform sem uma necessidade pedagógica concreta.
+## Ambiente local
 
-Cada módulo Terraform deve ter uma responsabilidade coesa, interface de variáveis/saídas documentada e exemplos/testes quando úteis. As configurações `envs/` compõem os módulos, com valores e estado separados. Não guardar state, credenciais ou `*.tfvars` secretos no Git. Usar backend remoto com controle de acesso e locking quando o projeto passar a provisionar cloud compartilhada.
+Docker Compose deve iniciar somente os componentes necessários à fatia atual. Configurações de exemplo podem ser versionadas; valores secretos ficam em ambiente local ignorado pelo Git ou em mecanismo de segredo apropriado. Dados de desenvolvimento e testes são sintéticos.
 
-## Jenkins e fluxo CI/CD
+O ambiente local é o primeiro alvo de execução. Um deploy remoto só entra depois do container e do pipeline estarem reproduzíveis, com ambiente e custo conhecidos. Staging e produção não são pré-requisitos para validar o domínio.
 
-O `Jenkinsfile` versionado é a fonte do pipeline; Jenkins o executa. Os mesmos comandos devem ser executáveis localmente para não acoplar regras de build/teste à UI do Jenkins.
+## Fluxo de desenvolvimento e entrega
 
-### Pull request / branch
+O processo de trabalho e seus checkpoints estão em [`README.md`](README.md). Para manter comportamento reproduzível, comandos de validação são compartilhados por local e CI.
 
-1. Checkout do commit exato e instalação reprodutível a partir de lockfiles.
-2. Lint, formatação e análise estática de Python e TypeScript.
-3. Testes unitários; depois testes de integração com banco efêmero/Compose.
-4. Verificações de dependências, segredos e imagens/código conforme maturidade do marco.
-5. Construção da imagem somente após os gates; marcar com commit imutável e publicar artefato de teste quando houver registry.
-6. Terraform `fmt`, `validate` e análise estática; gerar plano em PR para revisão, sem aplicar automaticamente produção.
+### Pull request
 
-### Promoção
+1. Obter o commit exato e instalar dependências fixadas por lockfile.
+2. Executar formatação/lint e análise estática adequados à stack escolhida.
+3. Executar testes unitários e testes de integração com dependências efêmeras ou Compose.
+4. Verificar segredos e dependências segundo o estágio do projeto.
+5. Construir a imagem/container e executar um smoke test quando essa etapa estiver habilitada.
+6. Validar Terraform (`fmt`, `validate`, análise estática e plano revisável) quando IaC fizer parte da mudança.
 
-1. Deploy do artefato imutável em staging e smoke tests.
-2. Verificar migrações, health checks, logs e métricas; preservar possibilidade de rollback.
-3. Produção exige aprovação humana, plano de infraestrutura revisado e artefato já validado em staging.
-4. Mudança de modelo executa testes de dados/preprocessing e validação de métricas/limiares antes de publicar artefato versionado. Mudar o modelo não altera Terraform automaticamente.
+Qualquer gate obrigatório com falha bloqueia a aprovação. CI não aplica mudanças em produção.
 
-Separar a autorização/credenciais e o estado Terraform por ambiente. Jenkins deve receber somente credenciais com escopo mínimo e usar IDs do credential store; nenhum segredo fica no Jenkinsfile, logs ou argumentos visíveis. Preferir agente isolado para builds e aplicar atualizações de Jenkins/plugins de maneira controlada.
+### Release e implantação
 
-## Pirâmide de qualidade
+Quando houver ambiente de staging, publicar uma imagem identificada pelo commit, implantá-la e executar health/smoke tests. Promover o mesmo artefato já validado. Mudanças de infraestrutura usam plano revisado; produção requer aprovação explícita, credenciais separadas e plano de recuperação.
 
-- **Unidade:** domínio, validação, normalização, cálculos e preprocessing sem rede ou banco real.
-- **Integração:** API, autenticação/autorização, banco, migrações, adaptador e worker nos limites entre módulos.
-- **Componente:** frontend renderiza estados de sucesso, vazio, loading e erro; backend valida resposta e contrato.
-- **Ponta a ponta:** poucos fluxos críticos, como dispositivo autorizado envia leitura e usuário autorizado visualiza histórico.
-- **Infraestrutura:** formatação, validação, scanners e revisão de plano; não aplicar mudanças destrutivas em produção como etapa automática de PR.
+### Ferramenta de pipeline
 
-Cobertura percentual é um indicador, não uma prova de qualidade. Cobrir primeiro regras críticas e casos negativos de segurança: usuário A tentando consultar veículo B, token inválido, payload excessivo, valor fora de faixa, repetição de evento e falha parcial de persistência.
+Há uma divergência nos materiais: os requisitos gerais do programa citam Jenkins, enquanto a estrutura do projeto final mostra `.github/workflows/ci.yml`. A proposta inicial é GitHub Actions pela simplicidade e pela estrutura de entrega; confirmar com o professor qual execução serve como evidência da nota. Se Jenkins for obrigatório, escolher Jenkins como o pipeline canônico em vez de manter dois pipelines. Os comandos de teste/build permanecem independentes da ferramenta.
 
-## Roadmap incremental em quatro marcos
+## Testes
 
-### 1. Domínio Python e contrato de telemetria
+- **Unidade:** contrato, conversões, regras de domínio, limites e deduplicação.
+- **Integração:** API, autenticação/autorização e persistência/migrações.
+- **Smoke:** aplicação sobe, health responde e uma operação essencial funciona.
+- **Carga:** k6 no endpoint principal, após estabelecer cenário, dados e alvo de p95 em `docs/desempenho.md`.
 
-**Entrega:** parser/normalizador, entidades/regras e fixtures de leituras simuladas, com testes unitários. Sem cloud e sem dependência do ELM327 físico para validar comportamento.
+Cada teste precisa verificar um resultado observável. Cobertura percentual isolada não demonstra qualidade; priorizar asserts do fluxo principal e falhas importantes.
 
-**Segurança desde o primeiro commit:** definir PIDs permitidos, não emitir comandos de escrita/controle ao veículo, não registrar VIN/segredos em fixtures, validar tamanho e ranges dos dados.
+## Observabilidade e infraestrutura
 
-**Pronto quando:** exemplos válidos são normalizados e entradas malformadas/inesperadas são rejeitadas de forma previsível.
+Adicionar métricas de requisições, latência e erros quando o fluxo já funcionar. Prometheus coleta essas métricas e Grafana exibe-as em dashboards versionados, vinculados à execução k6. Evitar rótulos que carreguem IDs pessoais, tokens ou alta cardinalidade.
 
-### 2. API, persistência e ambiente local reproduzível
+Terraform entra quando o deploy-alvo estiver escolhido. Começar pelo menor módulo necessário ao ambiente não produtivo, separar estado e credenciais e revisar o plano antes de aplicar. Não criar rede, banco gerenciado e runtime em nuvem por antecipação.
 
-**Entrega:** FastAPI, PostgreSQL, migrações e Compose; autenticação inicial de dispositivo e testes de integração API+banco.
+## Evolução de contexto
 
-**Segurança:** TLS no ambiente remoto, autorização por veículo em toda consulta/escrita, limites de payload e taxa, queries parametrizadas/ORM, conta de banco sem privilégio administrativo, configuração via ambiente/secret store.
-
-**Pronto quando:** uma leitura autenticada é persistida e consultada pelo proprietário autorizado; um usuário/dispositivo diferente recebe negação; o ambiente pode ser recriado sem perder dados por acidente.
-
-### 3. Painel, previsões e rastreabilidade do modelo
-
-**Entrega:** React/TypeScript consumindo OpenAPI, primeira baseline Python e previsões associadas a versão de modelo.
-
-**Segurança:** autenticação de usuário, autorização server-side, validação de payload no backend, proteção contra exposição de dados entre contas, dependências e artefatos versionados, dados de avaliação sem identificadores pessoais desnecessários.
-
-**Pronto quando:** usuário vê somente seus veículos; previsão e versão do modelo são rastreáveis; fluxos essenciais têm testes de componente e integração.
-
-### 4. Terraform, Jenkins e operação em staging/produção
-
-**Entrega:** módulos próprios, ambientes remotos separados, pipeline Jenkins com gates, deploy em staging, observabilidade e procedimento de recuperação.
-
-**Segurança:** análise de IaC e imagem, permissões mínimas, criptografia, backups protegidos, credenciais segregadas, revisão do plano e aprovação de produção, registro de auditoria e processo de atualização/rollback.
-
-**Pronto quando:** PR executa verificações e mostra plano; falha crítica bloqueia promoção; staging é implantado pelo pipeline; produção só avança com aprovação e plano revisado.
-
-## Referências técnicas
-
-- [Jenkins Pipeline como código](https://www.jenkins.io/doc/book/pipeline/)
-- [Terraform: estrutura padrão de módulos](https://developer.hashicorp.com/terraform/language/modules/develop/structure)
-- [Docker Compose](https://docs.docker.com/compose/)
-- [FastAPI: gerar clientes a partir do OpenAPI](https://fastapi.tiangolo.com/advanced/generate-clients/)
-- [Papéis propostos para subagentes Codex](agent-roles.md)
+O desenho não pressupõe autenticação de usuários finais, conexão física ao veículo, isolamento multi-tenant completo, modelo preditivo ou alta disponibilidade no primeiro fluxo. Se algum desses requisitos se tornar necessário, documentar a necessidade, o risco, a decisão e os novos critérios de aceite antes de ampliar a solução.

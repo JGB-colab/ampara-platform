@@ -86,14 +86,14 @@ Referências de trabalho: NIST SSDF para integrar práticas seguras ao ciclo de 
 | Planejar | Identificar ativos, dados, atores, abuso e requisito de segurança da história | Checklist de ameaça/decisão atualizado em `sdlc/` |
 | Desenhar | Definir trust boundaries, autenticação, autorização, retenção e falhas seguras | Diagrama/contrato e ADR quando decisão for relevante |
 | Implementar | Validar input, aplicar menor privilégio, tratar erros e evitar segredos | Revisão de código e testes negativos |
-| Verificar | Testes unitários/integrados de segurança, dependências, secrets e IaC | Relatórios do pipeline Jenkins; achados tratados ou aceitos com justificativa |
+| Verificar | Testes unitários/integrados de segurança, dependências, secrets e IaC | Relatórios do pipeline de CI; achados tratados ou aceitos com justificativa |
 | Entregar | Artefato imutável, staging, smoke tests e aprovação de produção | Registro de build, commit, versão de imagem/modelo e aprovação |
 | Operar | Monitorar falhas de autenticação, abuso, erros, capacidade e dependências vulneráveis | Logs sem segredos, alertas, backup e procedimento de resposta |
 | Aprender | Corrigir causa raiz e atualizar testes/processo depois de incidente/defeito | Issue/ADR sem dados sensíveis e teste de regressão |
 
-## Gates de segurança no Jenkins
+## Gates de segurança na CI/CD
 
-O pipeline evolui junto às sprints. Não é necessário instalar toda ferramenta no primeiro dia, mas cada controle obrigatório daquele marco deve bloquear a promoção quando falhar.
+O pipeline evolui junto às etapas do projeto. Não é necessário instalar toda ferramenta no primeiro dia, mas cada controle obrigatório daquele marco deve bloquear a promoção quando falhar.
 
 1. **Em todo PR:** lint/typecheck, testes, detecção de segredos e revisão humana.
 2. **Antes de publicar imagem:** scanner de dependências e imagem; build não roda como root; artefato associado ao commit.

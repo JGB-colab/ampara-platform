@@ -35,9 +35,9 @@ Referências de trabalho: NIST SSDF para integrar práticas seguras ao ciclo de 
 
 ### Identidade, autenticação e autorização
 
-- Cada chamada de ingestão deve autenticar um dispositivo; cada consulta deve autenticar usuário.
-- Aplicar autorização no backend em toda operação usando `vehicle_id`/identificadores enviados pelo cliente. Não confiar em ocultação de botões, UUID difícil de adivinhar ou filtro feito apenas no frontend.
-- Vincular dispositivo a veículo/conta, permitir revogar e rotacionar credenciais. Usar tokens com escopo e expiração; não usar uma chave compartilhada global para todos os dispositivos.
+- **Regra-alvo:** cada chamada de ingestão autentica um dispositivo; cada consulta autentica um usuário e verifica sua autorização para o veículo no backend.
+- **MVP atual (ADR 0001):** não há contas de usuário. Tanto a ingestão quanto a consulta usam `X-Device-Token`, configurado por ambiente e associado a um único `vehicle_id`. Essa solução educativa serve apenas ao fluxo local de demonstração; não representa autenticação multiusuário nem deve ser exposta como API pública.
+- **Antes de oferecer acesso multiusuário ou público:** implementar autenticação de usuário para consultas e credenciais por dispositivo com escopo, expiração, revogação e rotação. Aplicar autorização no backend em toda operação usando `vehicle_id`/identificadores enviados pelo cliente. Não confiar em ocultação de botões, UUID difícil de adivinhar ou filtro feito apenas no frontend.
 - Administradores e automações têm identidades/credenciais distintas. Aplicar menor privilégio e remover acessos sem uso.
 
 ### Dados e privacidade

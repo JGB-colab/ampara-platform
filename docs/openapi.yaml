@@ -1,0 +1,302 @@
+openapi: 3.1.0
+info:
+  title: Ampara Telemetry API
+  version: 0.1.0
+  description: >-
+    API didática para registrar e consultar leituras sintéticas de telemetria.
+    Uma leitura é um valor de um PID OBD-II em um instante; ela não é, por si só,
+    um diagnóstico do veículo. Use /docs para explorar as operações e exemplos.
+    A credencial deste MVP autoriza somente um veículo configurado.
+servers:
+  - url: http://localhost:8001
+    description: Ambiente local Docker Compose
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Verificar disponibilidade da API e do banco
+      description: Confirma que a API responde e consegue executar uma consulta simples no banco de dados.
+      responses:
+        "200":
+          description: Serviço saudável.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: O banco de dados está indisponível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                detail: Banco indisponível
+  /v1/telemetria:
+    post:
+      tags: [telemetria]
+      summary: Registrar uma leitura de telemetria
+      description: >-
+        Recebe uma leitura por solicitação. O token deve estar autorizado para
+        o vehicle_id informado. Reutilize event_id ao reenviar o mesmo evento:
+        conteúdo idêntico retorna 200 sem criar outra linha; conteúdo diferente
+        retorna 409. O timestamp precisa incluir fuso horário e é armazenado em UTC.
+      security:
+        - DeviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelemetryCreate"
+            examples:
+              engine-rpm-reading:
+                summary: Leitura sintética de rotação do motor
+                value:
+                  event_id: 8d1c1e4a-6f7a-4d1b-9c2e-5a6b7c8d9e01
+                  vehicle_id: classic-demo
+                  recorded_at: "2026-11-06T12:30:00-03:00"
+                  pid: "010C"
+                  value: 850
+                  unit: rpm
+      responses:
+        "201":
+          description: Leitura criada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelemetryRead"
+              example:
+                event_id: 8d1c1e4a-6f7a-4d1b-9c2e-5a6b7c8d9e01
+                vehicle_id: classic-demo
+                recorded_at: "2026-11-06T15:30:00Z"
+                pid: "010C"
+                value: 850
+                unit: rpm
+                duplicate: false
+        "200":
+          description: A leitura idêntica já existia; nenhuma linha nova foi criada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelemetryRead"
+              example:
+                event_id: 8d1c1e4a-6f7a-4d1b-9c2e-5a6b7c8d9e01
+                vehicle_id: classic-demo
+                recorded_at: "2026-11-06T15:30:00Z"
+                pid: "010C"
+                value: 850
+                unit: rpm
+                duplicate: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: O event_id já foi usado com conteúdo diferente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                detail: event_id já usado com outro conteúdo
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DeviceAuthUnavailable"
+  /v1/veiculos/{vehicle_id}/telemetria:
+    get:
+      tags: [telemetria]
+      summary: Consultar leituras de um veículo
+      description: >-
+        Retorna as leituras mais recentes primeiro. O dispositivo só pode
+        consultar o veículo ao qual está vinculado. Use limit para escolher
+        quantas leituras retornar.
+      security:
+        - DeviceToken: []
+      parameters:
+        - name: vehicle_id
+          in: path
+          required: true
+          description: Identificador do veículo autorizado para este dispositivo.
+          schema:
+            type: string
+            examples: [classic-demo]
+        - name: limit
+          in: query
+          required: false
+          description: Número máximo de leituras retornadas (1 a 500).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+            examples: [100]
+      responses:
+        "200":
+          description: Leituras ordenadas da mais recente para a mais antiga.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TelemetryRead"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DeviceAuthUnavailable"
+components:
+  securitySchemes:
+    DeviceToken:
+      type: apiKey
+      in: header
+      name: X-Device-Token
+      description: Token configurado localmente para o dispositivo.
+  responses:
+    Unauthorized:
+      description: Token ausente ou inválido.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            detail: Credencial de dispositivo inválida
+    Forbidden:
+      description: O token não está autorizado para o veículo informado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            detail: Dispositivo não autorizado para este veículo
+    DeviceAuthUnavailable:
+      description: A autenticação do dispositivo não está configurada.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            detail: Autenticação do dispositivo não configurada
+    ValidationError:
+      description: Solicitação inválida ou fora dos limites documentados.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/HTTPValidationError"
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          const: "ok"
+          description: Indica que a API e o banco estão disponíveis.
+          examples: ["ok"]
+    TelemetryCreate:
+      type: object
+      required: [event_id, vehicle_id, recorded_at, pid, value, unit]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: Identificador único do evento. Reutilize-o ao reenviar a mesma leitura.
+          examples: [8d1c1e4a-6f7a-4d1b-9c2e-5a6b7c8d9e01]
+        vehicle_id:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: "^[A-Za-z0-9_-]+$"
+          description: Identificador do veículo autorizado para este dispositivo no MVP.
+          examples: [classic-demo]
+        recorded_at:
+          type: string
+          format: date-time
+          description: Data e hora ISO 8601 com fuso. A API armazena o instante em UTC.
+          examples: ["2026-11-06T12:30:00-03:00"]
+        pid:
+          type: string
+          minLength: 4
+          maxLength: 4
+          enum: ["0105", "010C", "010D"]
+          description: >-
+            PID OBD-II aceito: 0105 (temperatura do líquido de arrefecimento),
+            010C (rotação do motor) ou 010D (velocidade). A disponibilidade depende do veículo.
+          examples: ["010C"]
+        value:
+          type: number
+          description: >-
+            Valor já convertido para a unidade indicada. Faixas: 0105 de -40 a 215 celsius;
+            010C de 0 a 8000 rpm; 010D de 0 a 255 km/h.
+          examples: [850]
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 16
+          enum: [celsius, rpm, km/h]
+          description: Unidade do PID: celsius para 0105, rpm para 010C e km/h para 010D.
+          examples: [rpm]
+    TelemetryRead:
+      type: object
+      required: [event_id, vehicle_id, recorded_at, pid, value, unit]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: Identificador do evento enviado pelo dispositivo.
+        vehicle_id:
+          type: string
+          description: Identificador do veículo associado à leitura.
+        recorded_at:
+          type: string
+          format: date-time
+          description: Instante da leitura, normalizado para UTC.
+        pid:
+          type: string
+          description: Código OBD-II da leitura.
+        value:
+          type: number
+          description: Valor convertido para a unidade indicada.
+        unit:
+          type: string
+          description: Unidade do valor: celsius, rpm ou km/h.
+        duplicate:
+          type: boolean
+          default: false
+          description: true se já existia uma leitura idêntica; false se foi criada agora.
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          description: Mensagem que explica por que a solicitação foi rejeitada.
+    HTTPValidationError:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: array
+          description: Erros de validação da solicitação.
+          items:
+            $ref: "#/components/schemas/ValidationError"
+    ValidationError:
+      type: object
+      required: [loc, msg, type]
+      properties:
+        loc:
+          type: array
+          description: Localização do campo inválido no corpo ou nos parâmetros.
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          type: string
+          description: Motivo da rejeição do campo.
+        type:
+          type: string
+          description: Código da categoria de erro de validação.

@@ -138,3 +138,18 @@ Grafana e Terraform ficam no próximo ciclo, depois da entrega, a menos que as e
 ## Registro de progresso
 
 Atualizar este arquivo ao concluir uma etapa, com data, evidência (commit, PR, CI ou relatório) e próximo passo. Marcar uma etapa como concluída somente quando todos os critérios de aceite correspondentes tiverem evidência executável. A próxima unidade de trabalho deve ser uma única fatia, com critérios revisados antes do código.
+
+## Retomada da próxima sessão
+
+### Checkpoint — 2026-11-08
+
+- O trabalho segue uma ação por vez, com proposta concreta antes de cada edição; consultar também as instruções em [`AGENTS.md`](../AGENTS.md).
+- Existe um scaffold local sem commit em `README.md`, `.env.example`, `.github/`, `CONTRIBUTORS.md`, `Dockerfile`, `alembic.ini`, `docker-compose.yml`, `docs/`, `migrations/`, `pyproject.toml`, `scripts/`, `src/` e `tests/`.
+- O contrato candidato foi documentado no FastAPI e em `docs/openapi.yaml`; a revisão funcional do contrato ainda está aberta. Não marcar a Etapa 0 como concluída até confirmar campos, PIDs/unidades/faixas, duplicatas, autorização e consistência entre o OpenAPI gerado e o arquivo estático.
+- `.env` local foi criado com credenciais aleatórias e é ignorado pelo Git. Não copiar seus valores para documentação ou commits.
+- `docker compose up --build` falhou ao publicar `127.0.0.1:8000`; a publicação foi alterada para `127.0.0.1:8001`, mantendo a porta interna da API em 8000. README, OpenAPI estático e default do smoke test também apontam para 8001.
+- O build da imagem terminou, PostgreSQL iniciou, a migração `0001_create_telemetry` foi aplicada, e `/health`, `/docs` e `/openapi.json` responderam com sucesso em `http://localhost:8001`.
+- Compose foi encerrado com Ctrl+C. Containers estão parados e o volume nomeado `ampara-platform_ampara-postgres` foi preservado.
+- `pytest` e o smoke test não foram executados; o pipeline também não foi executado. Não declarar a fatia funcionalmente validada.
+- Próxima ação: revisar em conjunto o contrato exibido em `/docs` e comparar os schemas/respostas do OpenAPI gerado com `docs/openapi.yaml`; corrigir uma divergência por vez após apresentar a mudança proposta.
+- As alterações locais continuam sem commit nem envio ao remoto.

@@ -33,7 +33,34 @@ k6, Prometheus, Grafana e Terraform entram depois do fluxo principal, conforme a
 
 ## Como executar
 
-**Ainda indisponível:** a implementação da aplicação e o ambiente Docker Compose não foram criados. As instruções de instalação, inicialização e testes serão preenchidas e verificadas junto com a primeira versão funcional.
+### Com Docker Compose
+
+```powershell
+Copy-Item .env.example .env
+# Edite .env e substitua os valores de exemplo por valores locais.
+docker compose up --build
+```
+
+API: `http://localhost:8001`. Documentação interativa: `http://localhost:8001/docs`. Health check: `http://localhost:8001/health`.
+
+### Testes
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+pytest
+```
+
+Smoke test contra a aplicação em execução:
+
+```powershell
+$env:AMAPARA_BASE_URL = "http://localhost:8001"
+$env:AMAPARA_DEVICE_TOKEN = "use-o-token-configurado-no-.env"
+python scripts/smoke.py
+```
+
+O contrato documentado está em [`docs/openapi.yaml`](docs/openapi.yaml). Para a decisão sobre dados parciais, duplicatas e expansão do escopo, consulte [`docs/adr/0001-fluxo-de-telemetria.md`](docs/adr/0001-fluxo-de-telemetria.md).
 
 ## Documentação do projeto
 

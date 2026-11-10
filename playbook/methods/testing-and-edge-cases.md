@@ -27,6 +27,10 @@ Encontrar um defeito antes da integração ou produção costuma reduzir o alcan
 
 ## Seleção de cenários
 
+O caminho feliz é o fluxo em que tudo dá certo. Ele é necessário, mas é onde a maior parte dos defeitos não está. Os defeitos costumam morar nas fronteiras: valor nulo, lista vazia, entrada muito longa, número negativo, zero, o maior valor aceito, datas-limite, texto com caracteres especiais.
+
+Uma forma prática de encontrar esses casos é perguntar, para cada parâmetro relevante, o que acontece no **mínimo, no máximo, no zero, no vazio e no inválido**. Essa heurística gera uma lista concreta a partir do contrato, sem inventar regras de domínio.
+
 Escolha casos a partir do contrato e do risco. Quando forem relevantes, considere:
 
 - caminho válido representativo;
@@ -37,7 +41,7 @@ Escolha casos a partir do contrato e do risco. Quando forem relevantes, consider
 - ausência de credencial, credencial inválida e tentativa de acesso a outro objeto;
 - falha de dependência, persistência ou estado vazio, quando fazem parte do comportamento prometido.
 
-Não teste toda combinação possível por padrão. Priorize as fronteiras com maior risco e evite casos que não correspondam a uma regra do produto.
+Você não vai cobrir todos os casos possíveis. O objetivo é cobrir os que têm **consequência real**. Um desconto acima de 100% que gera valor negativo em um sistema de pagamento merece teste. Um campo de texto com dez caracteres a mais do que o usual provavelmente não merece. Priorize as fronteiras com maior risco e evite casos que não correspondam a uma regra do produto.
 
 ### Aplicação no piloto Ampara
 
@@ -47,11 +51,15 @@ Para a API atual, casos relevantes derivam do contrato: PID permitido e não per
 
 Organize cada caso em **Arrange, Act, Assert** quando isso combinar com as convenções do projeto:
 
-1. Prepare os dados e dependências do cenário.
-2. Execute uma ação observável.
-3. Compare o resultado com um comportamento esperado.
+1. **Arrange** — prepare os dados, dependências e estado inicial do cenário.
+2. **Act** — execute exatamente uma ação observável.
+3. **Assert** — compare o resultado com o comportamento esperado.
 
-Prefira nomes que expliquem o comportamento esperado, como `rejeita_pid_nao_permitido`, em vez de nomes que descrevam apenas uma função interna.
+Separe visualmente as três fases com comentários ou linha em branco. A separação não é cosmética: quando o teste falha, ela indica em qual fase o problema ocorreu e reduz o tempo de diagnóstico.
+
+O nome do teste importa tanto quanto o código. Um nome como `rejeita_pid_desconhecido` informa a regra; `testa_validacao` não informa nada. Em uma falha de pipeline, o nome é a primeira pista que o desenvolvedor lê. Prefira nomes que expressem o comportamento esperado em vez de nomes que descrevam apenas uma função interna.
+
+Cada teste deve verificar **um comportamento**. Múltiplos `assert` são aceitáveis quando todos descrevem o mesmo resultado esperado. Um teste que verifica comportamentos distintos não diz qual deles quebrou quando falha.
 
 ## Expectativas independentes
 
@@ -59,9 +67,17 @@ O valor esperado precisa ser determinado independentemente da implementação te
 
 Asserte status, resposta, estado persistido ou outro efeito relevante. Evite testes que apenas executam código sem verificar um resultado observável.
 
+## Cobertura de código
+
+Ferramentas de cobertura medem quanto do código foi executado durante os testes. As métricas mais comuns são cobertura de linhas, de ramos (cada lado de um `if`) e de funções. A cobertura de ramos é mais útil que a de linhas: uma linha com `if (x) { ... }` pode ser executada sem que o caminho falso seja testado.
+
+Cobertura alta não garante bons testes. Um teste sem nenhuma asserção executa todas as linhas e pode atingir 100% de cobertura. Use cobertura como um **indicador de onde não há testes**, não como meta a ser atingida a qualquer custo. Times que exigem 100% tendem a escrever testes que apenas chamam funções sem verificar resultados.
+
+O relatório de cobertura é útil para encontrar código sem teste. Para descobrir se as asserções existentes realmente detectam defeitos, use revisão de mutação.
+
 ## Revisão de mutação
 
-Para avaliar se testes protegem uma regra importante, pode-se introduzir uma alteração proposital e pequena — por exemplo, trocar `<` por `<=` — e confirmar que um teste relevante falha.
+Para avaliar se testes protegem uma regra importante, pode-se introduzir uma alteração proposital e pequena — por exemplo, trocar `<` por `<=` ou remover uma chamada — e confirmar que um teste relevante falha. Ferramentas de mutação automatizam esse processo aplicando alterações sistemáticas e verificando quais "mutantes" sobrevivem sem ser detectados por nenhum teste. Cada mutante sobrevivente indica uma asserção fraca.
 
 - Proponha essa verificação como uma ação separada, com alvo e teste definidos.
 - Faça a mutação em uma cópia descartável ou worktree isolada, nunca no workspace compartilhado.

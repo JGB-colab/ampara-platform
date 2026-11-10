@@ -9,7 +9,10 @@ from ampara.domain import validate_reading
 
 class TelemetryCreate(BaseModel):
     event_id: UUID = Field(
-        description="Identificador único do evento, gerado pelo dispositivo. Reutilize-o ao reenviar a mesma leitura.",
+        description=(
+            "Identificador único do evento dentro do veículo, gerado pelo dispositivo. "
+            "Reutilize-o ao reenviar a mesma leitura."
+        ),
         examples=["8d1c1e4a-6f7a-4d1b-9c2e-5a6b7c8d9e01"],
     )
     vehicle_id: str = Field(
@@ -28,9 +31,10 @@ class TelemetryCreate(BaseModel):
         max_length=4,
         description=(
             "Código OBD-II aceito: 0105 (temperatura do líquido de arrefecimento), "
-            "010C (rotação do motor) ou 010D (velocidade). A disponibilidade depende do veículo."
+            "010C (rotação do motor) ou 010D (velocidade). A disponibilidade depende do veículo. "
+            "Letras minúsculas são aceitas e normalizadas para maiúsculas antes da validação."
         ),
-        json_schema_extra={"enum": ["0105", "010C", "010D"]},
+        json_schema_extra={"enum": ["0105", "010C", "010c", "010D", "010d"]},
         examples=["010C"],
     )
     value: float = Field(
@@ -55,7 +59,7 @@ class TelemetryCreate(BaseModel):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("recorded_at precisa incluir fuso horário")
         return value
-
+    # pid é aceito sem distinção de maiúsculas e minúsculas
     @field_validator("pid")
     @classmethod
     def normalize_pid(cls, value: str) -> str:

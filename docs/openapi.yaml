@@ -203,7 +203,7 @@ components:
         event_id:
           type: string
           format: uuid
-          description: Identificador único do evento. Reutilize-o ao reenviar a mesma leitura.
+          description: Identificador único do evento dentro do veículo. Reutilize-o ao reenviar a mesma leitura.
           examples: [8d1c1e4a-6f7a-4d1b-9c2e-5a6b7c8d9e01]
         vehicle_id:
           type: string
@@ -221,10 +221,11 @@ components:
           type: string
           minLength: 4
           maxLength: 4
-          enum: ["0105", "010C", "010D"]
+          enum: ["0105", "010C", "010c", "010D", "010d"]
           description: >-
             PID OBD-II aceito: 0105 (temperatura do líquido de arrefecimento),
             010C (rotação do motor) ou 010D (velocidade). A disponibilidade depende do veículo.
+            Letras minúsculas são aceitas e normalizadas para maiúsculas antes da validação.
           examples: ["010C"]
         value:
           type: number

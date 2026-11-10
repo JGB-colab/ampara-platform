@@ -1,0 +1,49 @@
+# Allow routine, non-destructive Git inspection in this trusted project.
+prefix_rule(
+    pattern = ["git", "status"],
+    decision = "allow",
+    justification = "Read repository status.",
+)
+
+prefix_rule(
+    pattern = ["git", "diff"],
+    decision = "allow",
+    justification = "Inspect local changes without changing repository state.",
+)
+
+prefix_rule(
+    pattern = ["git", "log"],
+    decision = "allow",
+    justification = "Inspect repository history.",
+)
+
+# Allow routine local Compose operations. Keep exec and down interactive.
+prefix_rule(
+    pattern = ["docker", "compose", "ps"],
+    decision = "allow",
+    justification = "Inspect local Compose service status.",
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "logs"],
+    decision = "allow",
+    justification = "Inspect local Compose service logs.",
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "up", "--build", "-d"],
+    decision = "allow",
+    justification = "Build and start this project's local Compose services.",
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "start"],
+    decision = "allow",
+    justification = "Start existing local Compose services.",
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "stop"],
+    decision = "allow",
+    justification = "Stop local Compose services without removing their data volume.",
+)

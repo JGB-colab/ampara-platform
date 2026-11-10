@@ -4,7 +4,7 @@ Este é o plano de execução e a fonte de verdade do progresso. Os critérios d
 
 ## Estado atual
 
-**Preparação concluída; produto ainda não implementado neste workspace.** Há documentos de arquitetura e segurança e uma configuração Jest sem código ou testes de produto. Não há, neste workspace, API funcional, testes do domínio, ambiente Compose, pipeline, Terraform ou dashboards Grafana. Documento não substitui evidência executável.
+**Etapa 0 concluída; Etapas 1 e 2 em validação.** O recorte funcional e o contrato foram revisados e alinhados entre implementação, OpenAPI gerado e `docs/openapi.yaml`. O repositório contém API FastAPI, persistência PostgreSQL com Alembic, testes pytest, Docker Compose e pipeline GitHub Actions configurado. Os testes unitários e um teste de integração PostgreSQL passaram localmente; o workflow hospedado, smoke test e proteção de branch ainda não foram verificados.
 
 O desenvolvimento começa pelo núcleo funcional que também atende ao nível B. Isso não fixa a classificação final: antes da entrega, declarar A somente se todas as evidências A aplicáveis estiverem completas e aceitas; caso contrário, declarar B e entregar o núcleo com qualidade. Depois do prazo, o mesmo projeto pode continuar evoluindo em direção ao A. Se um item avançado ameaçar funcionamento, testes ou CI, ele fica para depois.
 
@@ -141,15 +141,29 @@ Atualizar este arquivo ao concluir uma etapa, com data, evidência (commit, PR, 
 
 ## Retomada da próxima sessão
 
-### Checkpoint — 2026-11-08
+### Checkpoint histórico — 2026-11-08
 
 - O trabalho segue uma ação por vez, com proposta concreta antes de cada edição; consultar também as instruções em [`AGENTS.md`](../AGENTS.md).
 - Existe um scaffold local sem commit em `README.md`, `.env.example`, `.github/`, `CONTRIBUTORS.md`, `Dockerfile`, `alembic.ini`, `docker-compose.yml`, `docs/`, `migrations/`, `pyproject.toml`, `scripts/`, `src/` e `tests/`.
-- O contrato candidato foi documentado no FastAPI e em `docs/openapi.yaml`; a revisão funcional do contrato ainda está aberta. Não marcar a Etapa 0 como concluída até confirmar campos, PIDs/unidades/faixas, duplicatas, autorização e consistência entre o OpenAPI gerado e o arquivo estático.
+- Naquele checkpoint, a revisão do contrato e a Etapa 0 permaneciam abertas. O checkpoint de 2026-11-09 registra a revisão concluída e as evidências atuais.
 - `.env` local foi criado com credenciais aleatórias e é ignorado pelo Git. Não copiar seus valores para documentação ou commits.
 - `docker compose up --build` falhou ao publicar `127.0.0.1:8000`; a publicação foi alterada para `127.0.0.1:8001`, mantendo a porta interna da API em 8000. README, OpenAPI estático e default do smoke test também apontam para 8001.
 - O build da imagem terminou, PostgreSQL iniciou, a migração `0001_create_telemetry` foi aplicada, e `/health`, `/docs` e `/openapi.json` responderam com sucesso em `http://localhost:8001`.
-- Compose foi encerrado com Ctrl+C. Containers estão parados e o volume nomeado `ampara-platform_ampara-postgres` foi preservado.
-- `pytest` e o smoke test não foram executados; o pipeline também não foi executado. Não declarar a fatia funcionalmente validada.
-- Próxima ação: revisar em conjunto o contrato exibido em `/docs` e comparar os schemas/respostas do OpenAPI gerado com `docs/openapi.yaml`; corrigir uma divergência por vez após apresentar a mudança proposta.
+- O Compose foi encerrado naquele checkpoint; o estado atual dos containers está registrado no checkpoint de 2026-11-09.
+- Naquele checkpoint, `pytest`, o smoke test e o pipeline ainda não haviam sido executados. Consulte o checkpoint de 2026-11-09 para as validações posteriores.
+- Próxima ação naquele momento: revisar o contrato. Essa ação foi concluída e está registrada no checkpoint de 2026-11-09.
 - As alterações locais continuam sem commit nem envio ao remoto.
+
+### Checkpoint — 2026-11-09
+
+- O workspace está na branch `main`, com alterações locais em `.github/workflows/ci.yml`, `.codex/rules/default.rules`, `docs/openapi.yaml`, `pyproject.toml`, `sdlc/milestones.md`, `src/ampara/schemas.py` e `tests/test_postgres_integration.py`.
+- `docs/openapi.yaml` registra que `event_id` é único por veículo e que PIDs em minúsculas são aceitos e normalizados para maiúsculas. O enum estático lista as formas maiúsculas e minúsculas aceitas.
+- Docker Compose iniciou API e PostgreSQL saudáveis. O OpenAPI 3.1.0 foi extraído de `app.openapi()` dentro do container; os containers permanecem em execução a pedido do usuário e o volume PostgreSQL foi preservado.
+- A implementação do schema Pydantic foi alinhada à documentação estática: o OpenAPI gerado enumera as variantes maiúsculas e minúsculas de PID, descreve a normalização e informa que `event_id` é único por veículo. A extração do OpenAPI dentro do container confirmou esses campos e as respostas 200, 201, 401, 403, 409, 422 e 503.
+- A revisão do contrato foi concluída: campos, faixas, timestamp com fuso horário/UTC, PIDs e normalização, duplicatas, envio unitário, autorização, limites de consulta e respostas previsíveis estão documentados; o OpenAPI gerado confirma o enum de PID e a unicidade de `event_id` por veículo.
+- A API e o PostgreSQL iniciaram saudáveis, e a validação de domínio no container confirmou `010c` normalizado para `010C`. O Compose permanece em execução a pedido do usuário.
+- Pipeline configurado em ordem fail-fast: lint, testes unitários, job de integração com Postgres efêmero, comparação de cobertura com a revisão base e build/smoke Compose. O token tem `contents: read`, checkout não persiste credenciais e não há `pull_request_target`, matrix ou retentativas dos testes. A instalação de dependências tem até três tentativas.
+- Ruff passou (`.venv\\Scripts\\python.exe -m ruff check .`); testes unitários passaram (9 passed, 1 deselected); integração com PostgreSQL real passou (1 passed, 9 deselected). A mutação isolada da expectativa de HTTP 200 para 999 falhou no assert esperado.
+- Pytest-cov gera dados separados de unitários e integração; o gate calcula a cobertura total da revisão base e falha se a cobertura atual cair. O merge só será bloqueado quando os checks forem marcados como obrigatórios na proteção de branch do GitHub.
+- O workflow e o gate de cobertura ainda não foram executados no GitHub Actions. O smoke test não foi executado nesta retomada. O Compose local permanece em execução a pedido do usuário.
+- Próximo passo: enviar esta branch em um PR para executar o workflow hospedado e configurar os checks como obrigatórios na proteção da `main`.

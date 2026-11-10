@@ -19,6 +19,8 @@ dependencies = [
 dev = [
     "httpx>=0.28,<1",
     "pytest>=8.3,<9",
+    "pytest-cov>=7,<8",
+    "ruff>=0.17,<1",
 ]
 
 [tool.setuptools.packages.find]
@@ -27,3 +29,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["integration: requires a PostgreSQL database"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

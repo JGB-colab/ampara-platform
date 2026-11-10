@@ -83,6 +83,21 @@ Informe período, quantidade de execuções ou PRs e dados sem amostra. Não dec
 
 Colete os valores em uma cadência regular e revise-os ao menos mensalmente. Se a média crescer, investigue cache, fila e paralelismo; se houver falhas instáveis, corrija fixtures e dependências; se o lead time subir, examine disponibilidade e fluxo de revisão. Uma métrica sinaliza onde investigar, mas não identifica sozinha a causa.
 
+## 6. Exercício integrado: pipeline para uma API
+
+Use uma API existente como base. O objetivo é demonstrar que um teste de borda detecta uma regressão e que a proteção da branch impede que ela seja integrada.
+
+1. Escolha uma função pequena de regra de negócio e registre seu comportamento esperado e seus limites.
+2. Escreva pelo menos cinco testes unitários pelo ciclo **RED, GREEN, REFACTOR**. Inclua os nomes dos casos e os limites cobertos. Se usar IA para rascunhar testes, confira de forma independente os dados e resultados esperados.
+3. Adicione um teste de integração contra PostgreSQL real, usando dados sintéticos e um banco isolado.
+4. Configure um workflow com lint, testes unitários, integração PostgreSQL, análise de segurança e cache de dependências. Dê nomes estáveis aos quatro checks que devem bloquear o merge e torne-os obrigatórios na proteção da branch principal.
+5. Em uma branch de exercício isolada, altere a regra para violar um dos casos de borda. Abra uma PR e confirme que o job falha, que o log mostra o teste e a mensagem esperada e que a proteção impede o merge. Nunca integre essa versão defeituosa.
+6. Corrija a regra na mesma PR ou em uma nova e confirme que os quatro checks passam. Verifique 100% de cobertura de ramos para a função escolhida, além do teste PostgreSQL.
+
+O estudante escreve a descrição da PR de teste sem delegá-la à IA. Ela deve citar o caso de borda violado, explicar por que o gate bloqueou a mudança e resumir como a correção evita a regressão. Um assistente pode revisar clareza e consistência depois, mas não deve escrever essa evidência em nome do estudante nem aprovar a PR.
+
+Guarde como evidências os casos de teste, o relatório de cobertura de ramos, a execução vermelha com a mensagem de falha, a execução verde após a correção e a descrição escrita pelo estudante. Use branch ou fork descartável e não altere `main` para demonstrar a falha.
+
 ## Evidências e limites
 
 Ao adotar este método, registre as regras ativas, os nomes dos checks obrigatórios, os limites de severidade, as exceções revisadas e a linha de base das métricas. Não declare um gate ativo apenas porque o workflow existe: confirme que a proteção exige seu resultado. Não interprete ausência de alertas, de bypasses ou de falsos positivos como prova de ausência de risco.

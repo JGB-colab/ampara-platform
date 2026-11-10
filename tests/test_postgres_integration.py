@@ -64,3 +64,70 @@ def test_telemetry_persists_and_can_be_queried_from_postgres(postgres_client: Te
     assert created.json()["duplicate"] is False
     assert queried.status_code == 200
     assert any(item["event_id"] == event_id for item in queried.json())
+
+
+@pytest.mark.integration
+def test_identical_event_retry_is_idempotent_in_postgres(postgres_client: TestClient) -> None:
+    event_id = str(uuid4())
+    payload = {
+        "event_id": event_id,
+        "vehicle_id": "integration-demo",
+        "recorded_at": "2026-11-06T12:00:00Z",
+        "pid": "010C",
+        "value": 850,
+        "unit": "rpm",
+    }
+    headers = {"X-Device-Token": "integration-device-token"}
+
+    first = postgres_client.post("/v1/telemetria", json=payload, headers=headers)
+    retry = postgres_client.post("/v1/telemetria", json=payload, headers=headers)
+    queried = postgres_client.get(
+        "/v1/veiculos/integration-demo/telemetria",
+        headers=headers,
+    )
+
+    assert first.status_code == 201
+    assert retry.status_code == 200
+    assert retry.json()["duplicate"] is True
+    assert sum(item["event_id"] == event_id for item in queried.json()) == 1
+
+
+@pytest.mark.integration
+def test_reused_event_id_with_different_content_conflicts_in_postgres(postgres_client: TestClient) -> None:
+    event_id = str(uuid4())
+    payload = {
+        "event_id": event_id,
+        "vehicle_id": "integration-demo",
+        "recorded_at": "2026-11-06T12:00:00Z",
+        "pid": "010C",
+        "value": 850,
+        "unit": "rpm",
+    }
+    headers = {"X-Device-Token": "integration-device-token"}
+
+    created = postgres_client.post("/v1/telemetria", json=payload, headers=headers)
+    changed_payload = {**payload, "value": 900}
+    conflict = postgres_client.post("/v1/telemetria", json=changed_payload, headers=headers)
+
+    assert created.status_code == 201
+    assert conflict.status_code == 409
+
+
+@pytest.mark.integration
+def test_invalid_device_token_is_rejected_by_postgres_api(postgres_client: TestClient) -> None:
+    payload = {
+        "event_id": str(uuid4()),
+        "vehicle_id": "integration-demo",
+        "recorded_at": "2026-11-06T12:00:00Z",
+        "pid": "010C",
+        "value": 850,
+        "unit": "rpm",
+    }
+
+    response = postgres_client.post(
+        "/v1/telemetria",
+        json=payload,
+        headers={"X-Device-Token": "invalid-integration-token"},
+    )
+
+    assert response.status_code == 401

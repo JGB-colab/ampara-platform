@@ -8,6 +8,16 @@ Este método ajuda a definir testes que protegem comportamentos observáveis e l
 
 Use o framework e as convenções existentes no projeto. No piloto Ampara, os exemplos usam `pytest` e `TestClient`; outros projetos devem adaptar os comandos e fixtures à própria stack.
 
+## Testes procuram defeitos
+
+Uma suíte aprovada mostra que os casos executados produziram os resultados esperados. Ela não prova que todos os defeitos foram encontrados. Por isso, avalie cada teste também pela capacidade de detectar uma regressão: pergunte qual alteração incorreta faria a asserção falhar.
+
+Priorize testes que distinguem o comportamento correto de erros plausíveis. Casos de borda, respostas negativas e regressões reproduzidas devem verificar resultados observáveis com expectativas independentes. Cobertura de linhas ou ramos ajuda a localizar caminhos não exercitados, mas não demonstra que as expectativas estão corretas.
+
+Quando apropriado, use TDD para observar primeiro a falha do novo teste, implementar o comportamento e então refatorar preservando a suíte. Uma mutação pequena e isolada pode avaliar se um teste realmente detecta a regra que pretende proteger; ela não substitui uma boa seleção de casos nem precisa ser aplicada em toda mudança.
+
+Encontrar um defeito antes da integração ou produção costuma reduzir o alcance e o custo da correção, mas o valor exato depende do sistema e do processo. Não apresente a regra de “10 vezes mais caro por fase” como constante universal. Registre dados do próprio projeto quando precisar justificar uma decisão econômica.
+
 ## Contexto antes de escrever testes
 
 1. Leia critérios de aceite, contrato, implementação, entidades, fixtures e testes próximos.
@@ -68,3 +78,8 @@ Investigue se a falha revela defeito de implementação, expectativa incorreta o
 ## Registro da verificação
 
 Informe os comandos executados, resultado observado, cenários cobertos e lacunas restantes. Diferencie análise estática de execução. Atualize o board com evidência e próximo passo; não declare uma suíte eficaz somente por quantidade ou cobertura percentual.
+
+## Referências
+
+- [E. W. Dijkstra, “On the reliability of programs” (EWD303)](https://www.cs.utexas.edu/~EWD/transcriptions/EWD03xx/EWD303.html)
+- Barry W. Boehm, *Software Engineering Economics*, 1981. Use os modelos de custo como contexto histórico; não generalize um multiplicador fixo para todos os projetos.

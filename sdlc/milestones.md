@@ -186,3 +186,11 @@ Atualizar este arquivo ao concluir uma etapa, com data, evidência (commit, PR, 
 - **Fechamento Etapa 7:** README declara nível B e documenta o teste de carga; `docs/ia.md` registra o uso de IA incluindo os bypasses de review; `CONTRIBUTORS.md` atualizado com PRs #1–#3.
 - **Bypasses administrativos:** os merges dos PRs #1, #2 e #3 usaram remoção temporária da exigência de review via API, com proteção restaurada; nenhum PR teve review aprovado — registrado para transparência.
 - **Pendente:** commit/PR final desta rodada de documentação e evidências; CI verde na `main` após merge.
+
+### Checkpoint — 2026-11-11 (continuação): Etapa 5 e entrega B mergeada
+
+- **PR #4 mergeado** (`feat/entrega-b` → `main`, squash `f87204d`): métricas `/metrics`, stack Prometheus/Grafana, scripts k6, resultados de desempenho, README nível B, `docs/ia.md`, `CONTRIBUTORS.md`, `docs/visao-produto.md`. 5 checks verdes; bypass administrativo de review aplicado e proteção restaurada (4º registro).
+- **Etapa 5 concluída:** `prometheus-fastapi-instrumentator` expõe `/metrics` sem labels sensíveis (teste dedicado em `test_telemetry.py`); Prometheus faz scrape de `api:8000/metrics` a cada 5s; Grafana provisiona datasource e dashboard "Ampara — Telemetria" versionados em `observability/`; alerta "Taxa de erros 5xx acima de 1%" provisionado e verificado via API; README documenta subida/descida do profile `observability`.
+- **Estado das etapas:** 0, 1, 2, 3, 4 e 5 com evidência na `main`; Etapa 6 (Terraform) e Etapa 7 formalmente fechada como entrega nível B em 2026-11-11.
+- **Observação de ambiente:** porta 3000 do host estava ocupada por serviço do Windows; Grafana publicado em `127.0.0.1:3300`.
+- **Lacunas conhecidas registradas:** sem logging estruturado, sem SLO formal, gestão de segredos apenas local (.env), OpenAPI estático pode dessincronizar do gerado — candidatas a evolução pós-entrega.

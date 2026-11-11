@@ -84,6 +84,23 @@ k6 run -e MODO=consulta -e BASE_URL=http://localhost:8001 -e AMAPARA_DEVICE_TOKE
 
 Resultados e limitações em [`docs/desempenho.md`](docs/desempenho.md). Para comparar otimizações futuras, recrie o banco (`docker compose down -v`) antes de cada medição.
 
+### Observabilidade (Prometheus + Grafana)
+
+A stack de observabilidade usa um profile separado e não sobe no `docker compose up` padrão:
+
+```powershell
+# Subir API + banco + Prometheus + Grafana
+docker compose --profile observability up -d --build
+
+# Parar tudo (mantém os volumes de dados)
+docker compose --profile observability down
+```
+
+- **API `/metrics`:** `http://localhost:8001/metrics` (formato Prometheus, sem dados sensíveis)
+- **Prometheus:** `http://localhost:9090` (target `ampara-api`, scrape a cada 5s)
+- **Grafana:** `http://localhost:3300` — login `admin`/`admin` (ou `GRAFANA_ADMIN_PASSWORD` no `.env`); dashboard "Ampara — Telemetria" é provisionado automaticamente a partir de `observability/grafana/`
+- **Alerta provisionado:** "Taxa de erros 5xx acima de 1%" (janela de 5 min, avaliado a cada 1 min)
+
 O contrato documentado está em [`docs/openapi.yaml`](docs/openapi.yaml). Para a decisão sobre dados parciais, duplicatas e expansão do escopo, consulte [`docs/adr/0001-fluxo-de-telemetria.md`](docs/adr/0001-fluxo-de-telemetria.md).
 
 ## Documentação do projeto

@@ -1,0 +1,64 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: ampara
+    folder: Ampara
+    interval: 1m
+    rules:
+      - uid: ampara-high-5xx-rate
+        title: Taxa de erros 5xx acima de 1%
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: Mais de 1% das requisições retornaram 5xx nos últimos 5 minutos.
+          description: >-
+            Verificar saúde do container da API e do PostgreSQL
+            (docker compose ps, logs do serviço api e db). Se o erro persistir,
+            considerar rollback da última release.
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: A
+              expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.01]
+              datasource:
+                type: __expr__
+                uid: __expr__

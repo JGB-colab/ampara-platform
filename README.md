@@ -43,6 +43,12 @@ docker compose up --build
 
 API: `http://localhost:8001`. Documentação interativa: `http://localhost:8001/docs`. Health check: `http://localhost:8001/health`.
 
+Para parar a aplicação e o banco sem apagar o volume de dados local:
+
+```powershell
+docker compose down
+```
+
 ### Testes
 
 ```powershell

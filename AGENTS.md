@@ -19,6 +19,14 @@
 - **Board e evidências:** mantenha o board da etapa atualizado após cada tarefa, com estado, evidência e próximo passo. Não marque uma etapa como concluída sem cumprir os critérios de aceite e obter a revisão do usuário.
 - **Subagentes:** use os perfis apropriados de `.codex/agents` conforme a necessidade. O agente principal continua responsável por revisar o resultado e manter o contexto do projeto.
 
+## Boas práticas e evolução do playbook
+
+- Quando o trabalho revelar uma boa prática de engenharia de software que seja bem explicada, verificável e reaplicável em outros projetos, incorpore-a ao método correspondente em `playbook/methods/` ou crie um método quando não houver um adequado.
+- Escreva a prática como um método: contexto e objetivo, passos aplicáveis, evidências esperadas, limites e riscos. Diferencie princípios gerais de exemplos que dependam de ferramenta, linguagem ou plataforma; verifique a documentação primária quando os detalhes puderem mudar.
+- Atualize `playbook/README.md` quando criar um método ou alterar sua organização.
+- Mantenha decisões e requisitos exclusivos do Ampara em `sdlc/` ou na documentação do projeto. O playbook pode apontar para esses exemplos, mas não deve transformá-los em regras universais.
+- Inclua a evolução do playbook no escopo aprovado da tarefa. Antes de editar, apresente os arquivos e o conteúdo pretendido e aguarde aprovação explícita, conforme o ciclo de trabalho acima.
+
 ## Testes e casos de borda
 
 - **Parta do projeto:** antes de propor testes, leia a implementação, o contrato, os fixtures e os testes existentes. Use o `pytest` e o `TestClient` já adotados; não introduza outro framework ou dependência sem necessidade aprovada.

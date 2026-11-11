@@ -8,7 +8,7 @@ Registrar métodos de desenvolvimento e boas práticas que possam ser reaplicado
 
 ## Como será organizado
 
-- **Métodos gerais:** ciclos de trabalho com IA, testes e casos de borda, refatoração com testes de caracterização e revisão de código assistida.
+- **Métodos gerais:** ciclos de trabalho com IA, testes e casos de borda, refatoração com testes de caracterização, governança de engenharia e entrega segura com revisão de PR e métricas de pipeline.
 - **Adaptações por projeto:** stack, comandos, arquitetura, domínio, riscos, critérios de aceite e perfis de agentes específicos.
 - **Templates:** boards, checkpoints, critérios de aceite e registros de decisão que ajudem a aplicar os métodos sem copiar regras de outro domínio.
 
@@ -34,3 +34,11 @@ O playbook estará pronto para uma primeira versão reutilizável quando:
 2. Separar os exemplos e comandos de `pytest` como adaptação Python, sem torná-los requisitos de todos os projetos.
 3. Aplicar os métodos nas próximas etapas do Ampara e registrar resultados no board do projeto.
 4. Preparar e revisar uma versão prévia somente depois de reunir evidências do piloto.
+
+## Métodos disponíveis
+
+- [Ciclo de trabalho assistido por IA](methods/ai-work-cycle.md)
+- [Testes e casos de borda](methods/testing-and-edge-cases.md)
+- [Refatoração com testes de caracterização](methods/characterization-refactoring.md)
+- [Governança e responsabilidade de engenharia](methods/governance-and-engineering-ownership.md)
+- [CI seguro, revisão de PR e métricas de entrega](methods/secure-ci-pr-and-pipeline-metrics.md)

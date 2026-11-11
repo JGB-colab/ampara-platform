@@ -7,6 +7,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Path, Query, Request,
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
@@ -47,6 +48,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
 @app.exception_handler(RequestValidationError)

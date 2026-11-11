@@ -31,5 +31,45 @@ services:
       retries: 5
       start_period: 10s
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: ["observability"]
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3300:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
 volumes:
   ampara-postgres:
+  prometheus-data:
+  grafana-data:

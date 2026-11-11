@@ -117,3 +117,13 @@ def test_health_and_openapi_are_available(client: TestClient) -> None:
     assert health.json() == {"status": "ok"}
     assert contract.status_code == 200
     assert "/v1/telemetria" in contract.json()["paths"]
+
+
+def test_metrics_endpoint_exposes_http_metrics(client: TestClient) -> None:
+    client.get("/health")
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "http_requests_total" in response.text
+    assert "http_request_duration_seconds" in response.text

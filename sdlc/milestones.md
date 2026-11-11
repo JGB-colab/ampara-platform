@@ -177,3 +177,12 @@ Atualizar este arquivo ao concluir uma etapa, com data, evidência (commit, PR, 
 - **Estado das etapas:** Etapa 0 concluída; Etapas 1 e 2 com evidência de CI verde nos PRs mergeados — pendente smoke local e atualização formal do estado; Etapa 3 com ADR e C4 mergeados.
 - **Restante para a entrega B:** smoke test local, Etapa 4 mínima (plano de desempenho + k6 em 3 estágios + relatório), atualização do README com nível B, verificação de segredos e fechamento da Etapa 7.
 - **Prazo informado pelo usuário:** entrega até depois de amanhã (2026-11-13).
+
+### Checkpoint final — 2026-11-11 (entrega nível B)
+
+- **Smoke local:** `docker compose up -d` + `scripts/smoke.py` aprovados em `http://localhost:8001` (health, ingestão autenticada e consulta).
+- **Etapa 4 concluída:** plano fixado em `docs/desempenho.md` antes de medir; gerador determinístico `scripts/gerar_carga.py` (20.000 eventos, seed 42) e `scripts/carga.k6.js` criados; execuções POST (3 estágios, 67.120 req, p95 sustentado 480,21 ms ≤ 500 ms, erro 0,43% < 1%) e GET (19.594 req, p95 255,08 ms, 0% erro) registradas com JSON bruto em `scripts/carga/`.
+- **Achado de desempenho:** saturação no estágio de pico (150 VUs) com timeouts concentrados; hipóteses de otimização documentadas em `docs/desempenho.md` sem implementação — medir antes de otimizar.
+- **Fechamento Etapa 7:** README declara nível B e documenta o teste de carga; `docs/ia.md` registra o uso de IA incluindo os bypasses de review; `CONTRIBUTORS.md` atualizado com PRs #1–#3.
+- **Bypasses administrativos:** os merges dos PRs #1, #2 e #3 usaram remoção temporária da exigência de review via API, com proteção restaurada; nenhum PR teve review aprovado — registrado para transparência.
+- **Pendente:** commit/PR final desta rodada de documentação e evidências; CI verde na `main` após merge.

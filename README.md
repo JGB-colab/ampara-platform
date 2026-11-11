@@ -1,6 +1,6 @@
-# Projeto B — base funcional, com possibilidade de evoluir para A
+# Projeto B — Ampara
 
-> Nível de trabalho atual: B. Antes da entrega, este cabeçalho será atualizado para A se todas as evidências A exigidas estiverem implementadas e demonstráveis.
+> **Nível declarado: B.** O núcleo funcional, a qualidade contínua, a documentação arquitetural e a medição de desempenho estão entregues. Observabilidade (Prometheus/Grafana) e infraestrutura como código (Terraform) ficam como evolução pós-entrega, conforme `sdlc/milestones.md`.
 
 ## Ampara
 
@@ -66,6 +66,24 @@ $env:AMAPARA_DEVICE_TOKEN = "use-o-token-configurado-no-.env"
 python scripts/smoke.py
 ```
 
+### Teste de carga (k6)
+
+Requer [k6](https://k6.io) instalado e a stack no ar:
+
+```powershell
+# Gera a massa sintética reproduzível (20.000 eventos, seed fixa)
+python scripts/gerar_carga.py
+
+# POST /v1/telemetria — 3 estágios (~9 min)
+$env:AMAPARA_DEVICE_TOKEN = "use-o-token-configurado-no-.env"
+k6 run -e BASE_URL=http://localhost:8001 -e AMAPARA_DEVICE_TOKEN=$env:AMAPARA_DEVICE_TOKEN scripts/carga.k6.js
+
+# GET /v1/veiculos/{vehicle_id}/telemetria — execução separada (~3 min)
+k6 run -e MODO=consulta -e BASE_URL=http://localhost:8001 -e AMAPARA_DEVICE_TOKEN=$env:AMAPARA_DEVICE_TOKEN scripts/carga.k6.js
+```
+
+Resultados e limitações em [`docs/desempenho.md`](docs/desempenho.md). Para comparar otimizações futuras, recrie o banco (`docker compose down -v`) antes de cada medição.
+
 O contrato documentado está em [`docs/openapi.yaml`](docs/openapi.yaml). Para a decisão sobre dados parciais, duplicatas e expansão do escopo, consulte [`docs/adr/0001-fluxo-de-telemetria.md`](docs/adr/0001-fluxo-de-telemetria.md).
 
 ## Documentação do projeto
@@ -74,6 +92,7 @@ O contrato documentado está em [`docs/openapi.yaml`](docs/openapi.yaml). Para a
 - [Arquitetura, stack e pipeline](sdlc/architecture-and-delivery.md)
 - [Requisitos e entregáveis do projeto final](specs/development-project.md)
 - [Requisitos de segurança](sdlc/security.md)
+- [Visão de produto e evolução](docs/visao-produto.md)
 
 ## Entrega do curso
 

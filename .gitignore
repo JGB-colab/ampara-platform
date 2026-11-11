@@ -20,6 +20,9 @@ build/
 !.env.example
 !.env.*.example
 
+# Massa de dados de carga regenerável por scripts/gerar_carga.py
+scripts/carga/eventos.json
+
 # Terraform cache and state (state may contain secrets)
 .terraform/
 *.tfstate

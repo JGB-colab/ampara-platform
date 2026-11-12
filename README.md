@@ -110,6 +110,7 @@ O contrato documentado está em [`docs/openapi.yaml`](docs/openapi.yaml). Para a
 - [Requisitos e entregáveis do projeto final](specs/development-project.md)
 - [Requisitos de segurança](sdlc/security.md)
 - [Visão de produto e evolução](docs/visao-produto.md)
+- [Deploy em produção (free tier)](docs/deploy.md) — API no ar em https://ampara-platform.onrender.com
 
 ## Entrega do curso
 

@@ -1,0 +1,9 @@
+# Copie para terraform.tfvars (NÃO versionado) e preencha.
+# Alternativa: variáveis de ambiente TF_VAR_cloudflare_api_token etc.
+
+cloudflare_api_token   = "SEU_API_TOKEN"
+cloudflare_account_id  = "SEU_ACCOUNT_ID"
+cloudflare_zone_id     = "SEU_ZONE_ID"
+cloudflare_zone_name   = "jgborg.dev.br"
+hostname               = "api"
+tunnel_name            = "ampara-api"

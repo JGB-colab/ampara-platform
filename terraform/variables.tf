@@ -1,12 +1,7 @@
 variable "cloudflare_api_token" {
-  description = "API token da Cloudflare com permissão Zone.DNS Edit e Account.Cloudflare Tunnel Edit. Fornecido via variável de ambiente CLOUDFLARE_API_TOKEN ou -var."
+  description = "API token da Cloudflare com permissão Zone.DNS Edit para a zona. Fornecido via variável de ambiente CLOUDFLARE_API_TOKEN ou -var."
   type        = string
   sensitive   = true
-}
-
-variable "cloudflare_account_id" {
-  description = "Account ID da conta Cloudflare (dashboard → qualquer domínio → sidebar direita)."
-  type        = string
 }
 
 variable "cloudflare_zone_id" {
@@ -25,8 +20,7 @@ variable "hostname" {
   default     = "api"
 }
 
-variable "tunnel_name" {
-  description = "Nome do túnel Cloudflare."
+variable "cloudflare_tunnel_id" {
+  description = "ID (UUID) do túnel Cloudflare criado manualmente em Zero Trust → Networks → Tunnels."
   type        = string
-  default     = "ampara-api"
 }

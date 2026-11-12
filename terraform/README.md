@@ -1,47 +1,69 @@
-# Terraform — Cloudflare Tunnel do Ampara
+# Terraform — DNS do túnel Cloudflare do Ampara
 
-Provisiona um túnel Cloudflare Tunnel e a rota DNS pública para a API, sem abrir portas no roteador e sem custo.
+Gerencia **apenas o registro DNS** que publica a API via Cloudflare Tunnel. O túnel em si e o Public Hostname (qual serviço responde) são criados manualmente no painel Zero Trust — essa divisão é intencional: o API token do Terraform só precisa de permissão de DNS.
 
-## O que este módulo cria
+## Arquitetura
+
+```
+Visitante → api.jgborg.dev.br → Cloudflare edge
+         → túnel (cloudflared rodando na máquina)
+         → http://localhost:8001 (API Ampara)
+```
+
+## O que este módulo gerencia
 
 | Recurso | Descrição |
 |---|---|
-| `cloudflare_tunnel.api` | Túnel gerenciado (`config_src = "cloudflare"` — regras de ingress pela API/painel Zero Trust) |
-| `cloudflare_record.api` | CNAME `<hostname>.<zone>` → `<tunnel-id>.cfargotunnel.com` (proxied) |
-| `random_id.tunnel_secret` | Segredo do túnel gerado e mantido no state |
+| `cloudflare_record.api` | CNAME `api.jgborg.dev.br` → `<tunnel-id>.cfargotunnel.com` (proxied) |
 
-## Pré-requisitos (conta gratuita)
+## Pré-requisitos (todos gratuitos)
 
-1. Conta Cloudflare (sem cartão).
-2. Zona `jgborg.dev.br` adicionada — apontar nameservers no registrador do domínio.
-3. API token com escopo **Zone → DNS → Edit** e **Account → Cloudflare Tunnel → Edit** (My Profile → API Tokens).
-4. `Account ID` e `Zone ID` no painel Cloudflare.
+1. Conta Cloudflare + zona `jgborg.dev.br` (nameservers apontados no registrador).
+2. **Zero Trust** ativado em one.dash.cloudflare.com (escolher team name grátis).
+3. Túnel criado manualmente: **Networks → Tunnels → Add → Cloudflared** → copiar o **Tunnel ID** (UUID).
+4. API token com escopo **Zone → DNS → Edit** para a zona (My Profile → API Tokens).
+5. `Zone ID` no painel Cloudflare (sidebar direita do domínio).
+
+## Configuração do túnel (painel Zero Trust)
+
+Em **Networks → Tunnels → seu túnel → Public Hostname**:
+
+- Subdomain: `api` · Domain: `jgborg.dev.br`
+- Service: `http://localhost:8001` (API local) ou `https://ampara-platform.onrender.com`
+
+> Se o Public Hostname já criar o DNS automaticamente, **não rode o apply** — o registro já existe e daria conflito. Nesse caso, ou remova a rota DNS no painel e deixe o Terraform criar, ou use `terraform import` para adotar o registro existente.
 
 ## Uso
 
 ```powershell
 cd terraform
+# preencha terraform.tfvars (ver terraform.tfvars.example) ou use TF_VAR_*
 terraform init
 terraform plan      # revise o que será criado
-terraform apply     # confirma e cria
+terraform apply     # confirma e cria o CNAME
 ```
 
-Alternativa às variáveis em `terraform.tfvars`: `TF_VAR_cloudflare_api_token`, `TF_VAR_cloudflare_account_id`, `TF_VAR_cloudflare_zone_id`, `TF_VAR_cloudflare_zone_name`.
+## Conector cloudflared (o que segura o túnel)
 
-## Depois do apply
+O túnel só funciona enquanto um `cloudflared` estiver conectado. Na máquina que hospeda a API:
 
-O output `tunnel_token` alimenta o conector. Opções:
+```powershell
+# instalar uma vez (PowerShell como Administrador):
+cloudflared.exe service install <TUNNEL_TOKEN>
 
-- **Remotamente gerenciado:** configurar o ingress no painel Zero Trust (Networks → Tunnels → Public Hostname) apontando para o serviço local (ex.: `http://localhost:8001`).
-- **cloudflared local:** `cloudflared tunnel run --token <tunnel_token>` com `config.yml` local definindo `ingress` para `localhost:8001`.
+# verificar:
+cloudflared.exe service status
+```
+
+O `TUNNEL_TOKEN` aparece na tela do túnel no painel Zero Trust. Instalar como serviço faz o conector subir com o Windows, sem terminal aberto.
 
 ## Regras deste módulo
 
-- Segredos nunca versionados: `terraform.tfvars` está no `.gitignore`; `terraform.tfstate` também.
+- Segredos nunca versionados: `terraform.tfvars` e `terraform.tfstate` estão no `.gitignore`.
 - `terraform plan` deve ser revisado antes de qualquer `apply`.
-- `terraform destroy` remove túnel e registro DNS.
+- `terraform destroy` remove apenas o registro DNS — **não** apaga o túnel (gerenciado no painel).
 
 ## Limitações
 
-- O túnel expõe o que estiver configurado no ingress — para produção real, avaliar autenticação na borda (Cloudflare Access) e TLS fim-a-fim.
-- Este módulo não provisiona a aplicação nem o banco; ele só publica um endpoint já existente.
+- O túnel expõe o que o Public Hostname apontar — a API continua protegida pelo `X-Device-Token`, mas para produção avaliar Cloudflare Access na borda.
+- Este módulo não provisiona a aplicação, o banco nem o conector cloudflared.

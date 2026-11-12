@@ -63,6 +63,22 @@ O `TUNNEL_TOKEN` aparece na tela do túnel no painel Zero Trust. Instalar como s
 - `terraform plan` deve ser revisado antes de qualquer `apply`.
 - `terraform destroy` remove apenas o registro DNS — **não** apaga o túnel (gerenciado no painel).
 
+## Escopo do IaC (decisão de arquitetura)
+
+Este módulo é **IaC parcial por decisão**: gerencia somente a camada de DNS, que é a parte crítica, mutável e sensível a drift. O restante da infraestrutura permanece fora do Terraform:
+
+| Componente | Gerenciado por | Motivo |
+|---|---|---|
+| Registro DNS (`ampara.jgborg.dev.br`) | **Terraform** | Mudança frequente, efeito imediato, fácil de auditar |
+| Túnel Cloudflare | Painel Zero Trust (manual) | Provider exigiria permissão `Account → Cloudflare Tunnel` não concedida ao token DNS-only |
+| Public Hostname / ingress | Painel Zero Trust (manual) | Acoplado ao túnel; recriá-lo exige acesso ao painel |
+| `cloudflared` no container | `Dockerfile` + env `TUNNEL_TOKEN` no Render | Config de aplicação, não de rede |
+| API e banco | Repo + painéis Render/Neon | Provisionados fora do ciclo de vida do DNS |
+
+**Consequência:** `terraform apply` sozinho **não** reconstrói o ambiente — ele assume que túnel, hostname e conectores já existem. Para recriar do zero, a ordem é: túnel no painel → Public Hostname → env vars no Render → `terraform apply` (ou `terraform import` do DNS já criado pelo painel).
+
+Essa divisão foi escolhida porque o API token do Terraform tem escopo mínimo (apenas `Zone → DNS → Edit`) — menor privilégio possível, menor superfície de vazamento. Ampliar o IaC para túnel/Render/Neon exigiria providers adicionais e mais permissões; fica como evolução futura se o projeto crescer.
+
 ## Limitações
 
 - O túnel expõe o que o Public Hostname apontar — a API continua protegida pelo `X-Device-Token`, mas para produção avaliar Cloudflare Access na borda.

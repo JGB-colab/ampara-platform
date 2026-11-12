@@ -12,3 +12,11 @@ def test_static_serves_logo(client) -> None:
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("image/")
+
+
+def test_coletor_page_served(client) -> None:
+    response = client.get("/coletor")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Web Bluetooth" in response.text

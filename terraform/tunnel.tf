@@ -4,9 +4,9 @@
 
 resource "cloudflare_record" "api" {
   zone_id = var.cloudflare_zone_id
-  name    = "${var.hostname}.${var.cloudflare_zone_name}"
+  name    = var.hostname
   type    = "CNAME"
-  value   = "${var.cloudflare_tunnel_id}.cfargotunnel.com"
+  content = "${var.cloudflare_tunnel_id}.cfargotunnel.com"
   proxied = true
   ttl     = 1
   comment = "Cloudflare Tunnel gerenciado por Terraform (Ampara API)"

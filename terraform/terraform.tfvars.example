@@ -4,5 +4,5 @@
 cloudflare_api_token  = "SEU_API_TOKEN"
 cloudflare_zone_id    = "SEU_ZONE_ID"
 cloudflare_zone_name  = "jgborg.dev.br"
-hostname              = "api"
+hostname              = "ampara"
 cloudflare_tunnel_id  = "UUID_DO_TUNEL_CRIADO_NO_PAINEL_ZERO_TRUST"

@@ -31,3 +31,5 @@ scripts/carga/eventos.json
 *.tfvars
 !*.tfvars.example
 crash.log
+crash.*.log
+terraform.rc

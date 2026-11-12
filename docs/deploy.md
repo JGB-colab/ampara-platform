@@ -18,7 +18,8 @@ Internet → Render (container Docker, build do Dockerfile do repo)
 
 - **Render:** Web Service Docker conectado ao repositório; deploy automático a cada push na `main`. Plano Free: 512 MB RAM, dorme após 15 min sem tráfego.
 - **Neon:** projeto PostgreSQL free (1 GB storage, 100 CU-h/mês, scale-to-zero após 5 min).
-- **Segredos:** `DATABASE_URL`, `AMAPARA_DEVICE_TOKEN` e `AMAPARA_ALLOWED_VEHICLE_ID` configurados como Environment Variables no painel do Render — nunca versionados.
+- **Segredos:** `DATABASE_URL`, `AMAPARA_DEVICE_TOKEN`, `AMAPARA_ALLOWED_VEHICLE_ID` e `TUNNEL_TOKEN` configurados como Environment Variables no painel do Render — nunca versionados.
+- **Cloudflare Tunnel (opcional):** o `cloudflared` roda dentro do mesmo container quando `TUNNEL_TOKEN` está definido, expondo `api.jgborg.dev.br` sem depender do PC local. Ver `terraform/README.md`.
 
 ## Variáveis de ambiente do serviço
 
@@ -27,6 +28,7 @@ Internet → Render (container Docker, build do Dockerfile do repo)
 | `DATABASE_URL` | Connection string do Neon com driver `postgresql+psycopg://` |
 | `AMAPARA_DEVICE_TOKEN` | Token forte gerado localmente (`openssl rand -hex 32`) |
 | `AMAPARA_ALLOWED_VEHICLE_ID` | `classic-demo` |
+| `TUNNEL_TOKEN` | Token do túnel Cloudflare (painel Zero Trust → Networks → Tunnels). Opcional: sem ela o container sobe só a API. |
 
 ## Comportamento do free tier
 
@@ -47,6 +49,6 @@ python scripts/smoke.py
 
 ## Limitações conhecidas
 
-- Sem domínio customizado: Render Free não permite `api.jgborg.dev.br`; usar `*.onrender.com` ou planejar Cloudflare Tunnel/plano pago.
+- Domínio customizado via `*.onrender.com` não é permitido no Free; a alternativa implementada é Cloudflare Tunnel (`api.jgborg.dev.br`) com `cloudflared` dentro do container — requer `TUNNEL_TOKEN` configurado e o túnel criado no painel Zero Trust (ver `terraform/`).
 - Sem observabilidade remota: Prometheus/Grafana rodam apenas localmente (`--profile observability`).
 - Autenticação é token único estático — adequada para demo, insuficiente para produção real (ver `sdlc/security.md`).

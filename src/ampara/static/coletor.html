@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ampara Coletor — ELM327 BLE</title>
+<style>
+  :root { --bg:#0f1420; --card:#1a2130; --accent:#f5a623; --text:#e8ecf3; --muted:#8b95a9; --ok:#4ade80; --bad:#f87171; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:24px; }
+  .wrap { max-width:640px; margin:0 auto; }
+  header { text-align:center; margin-bottom:24px; }
+  h1 { font-size:1.3rem; margin-top:10px; }
+  .subtitle { color:var(--muted); font-size:0.85rem; margin-top:4px; }
+  .panel { background:var(--card); border-radius:12px; padding:18px; margin-bottom:16px; }
+  label { display:block; font-size:0.78rem; color:var(--muted); margin-bottom:6px; }
+  input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #2a3450; background:#121826; color:var(--text); font-size:0.95rem; margin-bottom:10px; }
+  .row { display:flex; gap:10px; }
+  .row > div { flex:1; }
+  button { background:var(--accent); color:#1a1206; border:none; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem; }
+  button.secondary { background:#2a3450; color:var(--text); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .status { padding:10px 14px; border-radius:8px; font-size:0.85rem; margin-bottom:14px; display:none; white-space:pre-wrap; }
+  .status.ok { display:block; background:#1d3a24; color:var(--ok); }
+  .status.err { display:block; background:#3a1d1d; color:var(--bad); }
+  .status.info { display:block; background:#1d2a3a; color:#7db4f0; }
+  #log { background:#0b0f18; border-radius:8px; padding:12px; font-family:monospace; font-size:0.78rem; color:var(--muted); max-height:180px; overflow-y:auto; margin-top:10px; }
+  .readings { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
+  .reading { background:#121826; border-radius:10px; padding:14px; text-align:center; }
+  .reading .v { font-size:1.5rem; font-weight:700; }
+  .reading .l { font-size:0.72rem; color:var(--muted); text-transform:uppercase; margin-top:4px; }
+  a { color:var(--accent); font-size:0.85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚡ Ampara Coletor</h1>
+    <p class="subtitle">ELM327 BLE → Web Bluetooth → API Ampara</p>
+    <p style="margin-top:8px"><a href="/">← voltar ao dashboard</a></p>
+  </header>
+
+  <div id="status" class="status"></div>
+
+  <div class="panel">
+    <div class="row">
+      <div><label>Token do dispositivo</label><input id="token" type="password" placeholder="X-Device-Token"></div>
+      <div><label>ID do veículo</label><input id="vehicle" type="text" placeholder="classic-demo"></div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <div><label>Intervalo (seg)</label><input id="interval" type="number" value="5" min="1" max="60"></div>
+      <div style="display:flex; align-items:flex-end; gap:8px;">
+        <button id="btnConnect" onclick="connect()">Conectar OBD</button>
+        <button id="btnStart" class="secondary" onclick="toggleLoop()" disabled>Iniciar</button>
+        <button id="btnStop" class="secondary" onclick="stop()" disabled>Parar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="readings">
+    <div class="reading"><div class="v" id="v-temp">—</div><div class="l">Refrigerante °C</div></div>
+    <div class="reading"><div class="v" id="v-rpm">—</div><div class="l">RPM</div></div>
+    <div class="reading"><div class="v" id="v-speed">—</div><div class="l">km/h</div></div>
+  </div>
+
+  <div class="panel" style="margin-top:16px">
+    <strong style="font-size:0.85rem">Log</strong>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+// ---------- ELM327 BLE ----------
+// Services/characteristics candidatas (clones variam; fallback = auto-discovery)
+const CANDIDATE_SERVICES = [
+  '0000fff0-0000-1000-8000-00805f9b34fb',
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '0000ae30-0000-1000-8000-00805f9b34fb',
+  '00001800-0000-1000-8000-00805f9b34fb',
+];
+const KNOWN_WRITE = ['0000fff1-0000-1000-8000-00805f9b34fb','0000fff2-0000-1000-8000-00805f9b34fb'];
+const KNOWN_NOTIFY = ['0000fff2-0000-1000-8000-00805f9b34fb','0000fff1-0000-1000-8000-00805f9b34fb'];
+
+let device = null, writeChar = null, notifyChar = null, rxBuffer = '', notifyStarted = false;
+let running = false, timer = null, busy = false;
+
+const $ = id => document.getElementById(id);
+function log(msg) {
+  const el = $('log');
+  el.textContent += new Date().toLocaleTimeString() + ' ' + msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+function status(msg, type='info') { const el=$('status'); el.textContent=msg; el.className='status '+type; }
+function hideStatus() { $('status').className='status'; }
+
+function loadSaved() {
+  $('token').value = localStorage.getItem('ampara_token') || '';
+  $('vehicle').value = localStorage.getItem('ampara_vehicle') || '';
+}
+
+async function connect() {
+  if (!navigator.bluetooth) {
+    status('Web Bluetooth não suportado. Use Chrome/Edge no Android ou desktop com HTTPS.', 'err');
+    return;
+  }
+  try {
+    device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: CANDIDATE_SERVICES,
+    });
+    log('device: ' + device.name);
+    device.addEventListener('gattserverdisconnected', () => {
+      status('Bluetooth desconectado.', 'err'); stop();
+    });
+    const server = await device.gatt.connect();
+    ({ writeChar, notifyChar } = await findChars(server));
+    startNotify();
+    await initObd();
+    $('btnStart').disabled = false;
+    status('ELM327 conectado: ' + device.name, 'ok');
+  } catch (e) {
+    status('Falha na conexão: ' + e.message, 'err');
+    log('erro: ' + e);
+  }
+}
+
+async function findChars(server) {
+  // tenta pares conhecidos primeiro
+  for (const sid of CANDIDATE_SERVICES) {
+    try {
+      const svc = await server.getPrimaryService(sid);
+      for (const wid of KNOWN_WRITE) {
+        for (const nid of KNOWN_NOTIFY) {
+          try {
+            const w = await svc.getCharacteristic(wid);
+            const n = await svc.getCharacteristic(nid);
+            if (w.properties.write && n.properties.notify) return { writeChar: w, notifyChar: n };
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+  // fallback: enumera tudo
+  const services = await server.getPrimaryServices();
+  for (const svc of services) {
+    const chars = await svc.getCharacteristics();
+    const writable = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+    const notifiable = chars.find(c => c.properties.notify || c.properties.indicate);
+    if (writable && notifiable && writable !== notifiable) return { writeChar: writable, notifyChar: notifiable };
+    if (writable && notifiable) return { writeChar: writable, notifyChar: notifiable };
+  }
+  throw new Error('nenhuma characteristic serial encontrada no dongle');
+}
+
+function startNotify() {
+  if (notifyStarted || !notifyChar) return;
+  notifyChar.addEventListener('characteristicvaluechanged', ev => {
+    const bytes = new Uint8Array(ev.target.value.buffer);
+    rxBuffer += new TextDecoder().decode(bytes);
+    resolveIfPrompt();
+  });
+  notifyChar.startNotifications();
+  notifyStarted = true;
+}
+
+// ---------- protocolo ELM327 ----------
+let pendingResolve = null;
+function resolveIfPrompt() {
+  if (rxBuffer.includes('>') && pendingResolve) {
+    const out = rxBuffer;
+    rxBuffer = '';
+    const r = pendingResolve; pendingResolve = null;
+    r(out);
+  }
+}
+
+function sendAt(cmd) {
+  return new Promise((resolve, reject) => {
+    rxBuffer = '';
+    const t = setTimeout(() => { pendingResolve = null; resolve(rxBuffer + '\n[TIMEOUT]'); }, 4000);
+    pendingResolve = out => { clearTimeout(t); resolve(out); };
+    const bytes = new TextEncoder().encode(cmd + '\r');
+    const prop = writeChar.properties.write ? 'writeValue' : 'writeValueWithoutResponse';
+    writeChar[prop](bytes).then(() => {}).catch(reject);
+  });
+}
+
+async function initObd() {
+  log('ATZ...'); await sendAt('ATZ'); await new Promise(r => setTimeout(r, 1500));
+  await sendAt('ATE0');   // echo off
+  await sendAt('ATH1');   // headers on
+  await sendAt('ATL0');   // linefeed off
+  await sendAt('ATSP0');  // protocolo automático
+  await sendAt('ATCAF0'); // sem formatting
+  log('ELM327 inicializado');
+}
+
+async function queryPid(mode01hex) {
+  if (busy) return null;
+  busy = true;
+  try {
+    const raw = await sendAt(mode01hex);
+    busy = false;
+    return parseMode01(raw, mode01hex.slice(-2).toUpperCase());
+  } catch (e) { busy = false; log('query erro: ' + e); return null; }
+}
+
+function parseMode01(raw, pid) {
+  // procura "41 <pid> <dados>" na resposta
+  const re = new RegExp('41\\s*' + pid + '\\s+([0-9A-Fa-f ]+)', 'i');
+  const m = raw.match(re);
+  if (!m) return null;
+  const bytes = m[1].trim().split(/\s+/).map(h => parseInt(h, 16)).filter(n => !isNaN(n));
+  if (pid === '0C' && bytes.length >= 2) return { value: (bytes[0]*256 + bytes[1]) / 4, unit: 'rpm' };
+  if (pid === '05' && bytes.length >= 1) return { value: bytes[0] - 40, unit: 'C' };
+  if (pid === '0D' && bytes.length >= 1) return { value: bytes[0], unit: 'km/h' };
+  return null;
+}
+
+// ---------- POST para a API ----------
+async function postReading(pid, value, unit) {
+  const token = $('token').value.trim();
+  const vehicle = $('vehicle').value.trim();
+  if (!token || !vehicle) { status('Informe token e veículo.', 'err'); return false; }
+  localStorage.setItem('ampara_token', token);
+  localStorage.setItem('ampara_vehicle', vehicle);
+  const body = {
+    event_id: crypto.randomUUID(),
+    vehicle_id: vehicle,
+    recorded_at: new Date().toISOString(),
+    pid: pid, value: value, unit: unit,
+  };
+  const res = await fetch('/v1/telemetria', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Device-Token': token },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({}));
+    log(`POST ${pid} -> HTTP ${res.status} ${b.detail || ''}`);
+    return false;
+  }
+  return true;
+}
+
+const PID_MAP = [
+  ['010C', 'v-rpm'], ['0105', 'v-temp'], ['010D', 'v-speed'],
+];
+const PID_UNIT = { '010C': 'rpm', '0105': 'C', '010D': 'km/h' };
+
+async function cycle() {
+  for (const [cmd, elId] of PID_MAP) {
+    const r = await queryPid(cmd);
+    if (!r) continue;
+    $(elId).textContent = r.value;
+    const ok = await postReading(cmd, r.value, r.unit);
+    log(`${cmd} = ${r.value} ${r.unit} -> ${ok ? 'enviado' : 'falhou'}`);
+  }
+}
+
+function toggleLoop() {
+  if (running) { stop(); return; }
+  running = true;
+  $('btnStart').textContent = 'Parar';
+  const interval = Math.max(1, parseInt($('interval').value) || 5) * 1000;
+  cycle();
+  timer = setInterval(cycle, interval);
+  status('Coletando...', 'ok');
+}
+function stop() {
+  running = false;
+  if (timer) clearInterval(timer);
+  $('btnStart').textContent = 'Iniciar';
+  status('Parado.');
+}
+
+loadSaved();
+</script>
+</body>
+</html>

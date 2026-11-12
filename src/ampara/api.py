@@ -62,6 +62,11 @@ def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/coletor", include_in_schema=False)
+def coletor() -> FileResponse:
+    return FileResponse(STATIC_DIR / "coletor.html")
+
+
 @app.exception_handler(RequestValidationError)
 async def sanitize_validation_error(
     _request: Request,

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ampara — Saúde do Veículo</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --card: #1a2130;
+    --accent: #f5a623;
+    --text: #e8ecf3;
+    --muted: #8b95a9;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 28px; }
+  header img { max-width: 320px; height: auto; border-radius: 12px; }
+  h1 { font-size: 1.4rem; font-weight: 600; margin-top: 12px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+  .panel {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 200px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #2a3450;
+    background: #121826;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  button {
+    background: var(--accent);
+    color: #1a1206;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.secondary { background: #2a3450; color: var(--text); }
+  .remember { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.85rem; color: var(--muted); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+  }
+  .card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .card .value { font-size: 2rem; font-weight: 700; margin-top: 6px; }
+  .card .unit { font-size: 0.85rem; color: var(--muted); }
+  .card .time { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #2a3450; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+  .status { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem; display: none; }
+  .status.error { display: block; background: #3a1d1d; color: var(--bad); }
+  .status.ok { display: block; background: #1d3a24; color: var(--ok); }
+  .hidden { display: none; }
+  footer { text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="/static/logo.jpg" alt="Ampara">
+    <h1>Saúde do Veículo</h1>
+    <p class="subtitle">Telemetria OBD-II em tempo real</p>
+  </header>
+
+  <div id="status" class="status"></div>
+
+  <div class="panel" id="loginPanel">
+    <div class="row">
+      <div class="field">
+        <label for="token">Token do dispositivo</label>
+        <input type="password" id="token" placeholder="Cole o token do veículo" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="vehicle">ID do veículo</label>
+        <input type="text" id="vehicle" placeholder="ex.: classic-demo" autocomplete="off">
+      </div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+      <button onclick="connect()">Conectar</button>
+      <label class="remember"><input type="checkbox" id="remember"> Lembrar neste navegador</label>
+    </div>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <div class="cards" id="cards"></div>
+
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <strong>Leituras recentes</strong>
+        <div style="display:flex; gap:8px;">
+          <button class="secondary" onclick="toggleAuto()" id="autoBtn">Auto: off</button>
+          <button class="secondary" onclick="refresh()">Atualizar</button>
+          <button class="secondary" onclick="disconnect()">Sair</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Horário (UTC)</th><th>PID</th><th>Valor</th><th>Unidade</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <p id="empty" class="hidden" style="color:var(--muted); text-align:center; padding:16px;">
+        Nenhuma leitura ainda. As leituras aparecem quando o coletor OBD-II enviar dados.
+      </p>
+    </div>
+  </div>
+
+  <footer>Ampara · telemetria veicular acessível</footer>
+</div>
+
+<script>
+const LS_TOKEN = 'ampara_token';
+const LS_VEHICLE = 'ampara_vehicle';
+const LS_REMEMBER = 'ampara_remember';
+let autoTimer = null;
+
+const PID_LABELS = {
+  '0105': { name: 'Temperatura do refrigerante', unit: '°C' },
+  '010C': { name: 'Rotação do motor', unit: 'rpm' },
+  '010D': { name: 'Velocidade', unit: 'km/h' },
+};
+
+function showStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+}
+
+function hideStatus() {
+  document.getElementById('status').className = 'status';
+}
+
+function loadSaved() {
+  if (localStorage.getItem(LS_REMEMBER) === '1') {
+    document.getElementById('token').value = localStorage.getItem(LS_TOKEN) || '';
+    document.getElementById('vehicle').value = localStorage.getItem(LS_VEHICLE) || '';
+    document.getElementById('remember').checked = true;
+  }
+}
+
+async function api(path) {
+  const token = document.getElementById('token').value.trim();
+  const vehicle = document.getElementById('vehicle').value.trim();
+  const res = await fetch(path.replace('{vehicle}', vehicle), {
+    headers: { 'X-Device-Token': token },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.detail || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+function latestByPid(data) {
+  const map = {};
+  for (const r of data) {
+    if (!map[r.pid] || new Date(r.recorded_at) > new Date(map[r.pid].recorded_at)) {
+      map[r.pid] = r;
+    }
+  }
+  return map;
+}
+
+function render(data) {
+  const latest = latestByPid(data);
+  const cardsEl = document.getElementById('cards');
+  cardsEl.innerHTML = '';
+  for (const [pid, info] of Object.entries(PID_LABELS)) {
+    const r = latest[pid];
+    const card = document.createElement('div');
+    card.className = 'card';
+    if (r) {
+      card.innerHTML = `
+        <div class="label">${info.name}</div>
+        <div class="value">${r.value}</div>
+        <div class="unit">${info.unit}</div>
+        <div class="time">${new Date(r.recorded_at).toLocaleString('pt-BR')}</div>`;
+    } else {
+      card.innerHTML = `
+        <div class="label">${info.name}</div>
+        <div class="value" style="color:var(--muted); font-size:1.2rem;">—</div>
+        <div class="unit">${info.unit}</div>`;
+    }
+    cardsEl.appendChild(card);
+  }
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  document.getElementById('empty').classList.toggle('hidden', data.length > 0);
+  for (const r of data.slice(0, 50)) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${new Date(r.recorded_at).toLocaleString('pt-BR')}</td>
+      <td>${r.pid}</td><td>${r.value}</td><td>${r.unit}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+async function refresh() {
+  try {
+    const data = await api('/v1/veiculos/{vehicle}/telemetria?limit=100');
+    render(data);
+    hideStatus();
+  } catch (e) {
+    showStatus(e.status === 401 ? 'Token inválido.' : e.status === 403 ? 'Token não autorizado para este veículo.' : 'Erro: ' + e.message, 'error');
+  }
+}
+
+function connect() {
+  const token = document.getElementById('token').value.trim();
+  const vehicle = document.getElementById('vehicle').value.trim();
+  if (!token || !vehicle) {
+    showStatus('Informe o token e o ID do veículo.', 'error');
+    return;
+  }
+  if (document.getElementById('remember').checked) {
+    localStorage.setItem(LS_REMEMBER, '1');
+    localStorage.setItem(LS_TOKEN, token);
+    localStorage.setItem(LS_VEHICLE, vehicle);
+  } else {
+    localStorage.removeItem(LS_REMEMBER);
+    localStorage.removeItem(LS_TOKEN);
+    localStorage.removeItem(LS_VEHICLE);
+  }
+  document.getElementById('loginPanel').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  refresh();
+}
+
+function disconnect() {
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('loginPanel').classList.remove('hidden');
+  stopAuto();
+}
+
+function toggleAuto() {
+  if (autoTimer) { stopAuto(); } else {
+    autoTimer = setInterval(refresh, 10000);
+    document.getElementById('autoBtn').textContent = 'Auto: on';
+  }
+}
+function stopAuto() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  const b = document.getElementById('autoBtn');
+  if (b) b.textContent = 'Auto: off';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadSaved();
+  if (localStorage.getItem(LS_REMEMBER) === '1' &&
+      document.getElementById('token').value && document.getElementById('vehicle').value) {
+    connect();
+  }
+});
+</script>
+</body>
+</html>

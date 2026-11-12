@@ -1,12 +1,14 @@
 import hmac
 from contextlib import asynccontextmanager
 from datetime import UTC
+from pathlib import Path as FsPath
 from typing import Annotated
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Path, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import APIKeyHeader
+from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
@@ -50,6 +52,14 @@ app = FastAPI(
 )
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+STATIC_DIR = FsPath(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.exception_handler(RequestValidationError)

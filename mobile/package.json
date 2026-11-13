@@ -12,7 +12,8 @@
     "expo-linking": "~58.0.17",
     "expo-router": "~58.0.31",
     "expo-status-bar": "~58.0.5",
-    "react": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-native": "0.88.1",
     "react-native-bluetooth-classic": "^1.73.0-rc.17",
     "react-native-safe-area-context": "~5.11.1",
@@ -28,7 +29,9 @@
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["react-native-bluetooth-classic"]
+        "exclude": [
+          "react-native-bluetooth-classic"
+        ]
       }
     }
   },

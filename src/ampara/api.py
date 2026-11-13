@@ -89,7 +89,7 @@ def _authorize_vehicle(vehicle_id: str, x_device_token: str | None) -> None:
         raise HTTPException(status_code=503, detail="Autenticação do dispositivo não configurada")
     if not x_device_token or not hmac.compare_digest(x_device_token, settings.device_token):
         raise HTTPException(status_code=401, detail="Credencial de dispositivo inválida")
-    if not hmac.compare_digest(vehicle_id, settings.allowed_vehicle_id):
+    if settings.allowed_vehicle_id != "*" and not hmac.compare_digest(vehicle_id, settings.allowed_vehicle_id):
         raise HTTPException(status_code=403, detail="Dispositivo não autorizado para este veículo")
 
 

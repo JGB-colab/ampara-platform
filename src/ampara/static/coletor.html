@@ -116,6 +116,13 @@ async function connect() {
     ({ writeChar, notifyChar } = await findChars(server));
     startNotify();
     await initObd();
+    const vin = await readVin();
+    if (vin) {
+      $('vehicle').value = vin;
+      log('VIN detectado: ' + vin);
+    } else {
+      log('VIN não lido (ECU pode não suportar Mode 09) — preencha o veículo manualmente');
+    }
     $('btnStart').disabled = false;
     status('ELM327 conectado: ' + device.name, 'ok');
   } catch (e) {
@@ -183,6 +190,22 @@ function sendAt(cmd) {
     const prop = writeChar.properties.write ? 'writeValue' : 'writeValueWithoutResponse';
     writeChar[prop](bytes).then(() => {}).catch(reject);
   });
+}
+
+async function readVin() {
+  // Mode 09 PID 02 retorna o VIN em até 5 frames "49 02 <frame> <bytes ASCII>"
+  const raw = await sendAt('0902');
+  let vin = '';
+  const re = /49\s*02\s+\d+\s+([0-9A-Fa-f ]+)/g;
+  let m;
+  while ((m = re.exec(raw)) !== null) {
+    const bytes = m[1].trim().split(/\s+/).map(h => parseInt(h, 16)).filter(n => !isNaN(n));
+    for (const b of bytes) {
+      if (b >= 0x20 && b <= 0x7e) vin += String.fromCharCode(b);
+    }
+  }
+  vin = vin.replace(/[^A-HJ-NPR-Z0-9]/gi, '').slice(0, 17).toUpperCase();
+  return vin.length === 17 ? vin : null;
 }
 
 async function initObd() {

@@ -1,4 +1,7 @@
+import pytest
 from fastapi.testclient import TestClient
+
+from ampara.config import Settings
 
 
 def test_ingest_and_query_valid_reading(
@@ -79,6 +82,30 @@ def test_device_cannot_write_for_another_vehicle(
     response = client.post("/v1/telemetria", json=invalid, headers=auth_headers)
 
     assert response.status_code == 403
+
+
+def test_wildcard_vehicle_allows_any_vehicle_id(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    auth_headers: dict[str, str],
+    valid_reading: dict[str, object],
+) -> None:
+    monkeypatch.setattr(
+        "ampara.api.settings",
+        Settings(
+            database_url="sqlite://",
+            device_token="test-device-token",
+            allowed_vehicle_id="*",
+        ),
+    )
+    vin_vehicle = {**valid_reading, "vehicle_id": "1HGCM82633A004352"}
+
+    created = client.post("/v1/telemetria", json=vin_vehicle, headers=auth_headers)
+    history = client.get("/v1/veiculos/1HGCM82633A004352/telemetria", headers=auth_headers)
+
+    assert created.status_code == 201
+    assert history.status_code == 200
+    assert history.json()[0]["vehicle_id"] == "1HGCM82633A004352"
 
 
 def test_duplicate_event_is_idempotent(

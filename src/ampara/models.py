@@ -11,6 +11,6 @@ class TelemetryRecord(SQLModel, table=True):
     event_id: str = Field(index=True, max_length=36)
     vehicle_id: str = Field(index=True, max_length=80)
     recorded_at: datetime = Field(sa_type=DateTime(timezone=True))
-    pid: str = Field(max_length=4)
+    pid: str = Field(max_length=5)
     value: float
     unit: str = Field(max_length=16)

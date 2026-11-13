@@ -51,6 +51,7 @@
       <div><label>Intervalo (seg)</label><input id="interval" type="number" value="5" min="1" max="60"></div>
       <div style="display:flex; align-items:flex-end; gap:8px;">
         <button id="btnConnect" onclick="connect()">Conectar OBD</button>
+        <button id="btnDtc" class="secondary" onclick="readDtcs()" disabled>Ler códigos</button>
         <button id="btnStart" class="secondary" onclick="toggleLoop()" disabled>Iniciar</button>
         <button id="btnStop" class="secondary" onclick="stop()" disabled>Parar</button>
       </div>
@@ -61,6 +62,11 @@
     <div class="reading"><div class="v" id="v-temp">—</div><div class="l">Refrigerante °C</div></div>
     <div class="reading"><div class="v" id="v-rpm">—</div><div class="l">RPM</div></div>
     <div class="reading"><div class="v" id="v-speed">—</div><div class="l">km/h</div></div>
+  </div>
+
+  <div class="panel" id="dtcPanel" style="margin-top:16px; display:none">
+    <strong style="font-size:0.85rem">Códigos de falha (DTC)</strong>
+    <div id="dtcList" style="margin-top:8px; font-family:monospace; font-size:0.9rem; color:var(--bad)"></div>
   </div>
 
   <div class="panel" style="margin-top:16px">
@@ -124,6 +130,7 @@ async function connect() {
       log('VIN não lido (ECU pode não suportar Mode 09) — preencha o veículo manualmente');
     }
     $('btnStart').disabled = false;
+    $('btnDtc').disabled = false;
     status('ELM327 conectado: ' + device.name, 'ok');
   } catch (e) {
     status('Falha na conexão: ' + e.message, 'err');
@@ -278,6 +285,50 @@ async function cycle() {
     $(elId).textContent = r.value;
     const ok = await postReading(cmd, r.value, r.unit);
     log(`${cmd} = ${r.value} ${r.unit} -> ${ok ? 'enviado' : 'falhou'}`);
+  }
+}
+
+// ---------- DTCs (Mode 03) ----------
+const sentDtcs = new Set();
+
+function decodeDtcs(raw) {
+  const codes = new Set();
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(/43\s+([0-9A-Fa-f ]+)/i);
+    if (!m) continue;
+    const bytes = m[1].trim().split(/\s+/).map(h => parseInt(h, 16)).filter(n => !isNaN(n));
+    for (let i = 0; i + 1 < bytes.length; i += 2) {
+      const b1 = bytes[i], b2 = bytes[i + 1];
+      if (b1 === 0 && b2 === 0) continue;
+      const sys = 'PCBU'[(b1 & 0xC0) >> 6];
+      const d = [(b1 & 0x30) >> 4, b1 & 0x0F, (b2 & 0xF0) >> 4, b2 & 0x0F];
+      codes.add(sys + d.map(x => x.toString(16).toUpperCase()).join(''));
+    }
+  }
+  codes.delete('');
+  return [...codes];
+}
+
+async function readDtcs() {
+  if (!device || !device.gatt.connected) { status('Conecte o OBD primeiro.', 'err'); return; }
+  $('btnDtc').disabled = true;
+  try {
+    const raw = await sendAt('03');
+    const codes = decodeDtcs(raw);
+    $('dtcPanel').style.display = 'block';
+    $('dtcList').textContent = codes.length ? codes.join('\n') : 'Nenhum código ativo.';
+    for (const code of codes) {
+      if (sentDtcs.has(code)) continue;
+      sentDtcs.add(code);
+      const ok = await postReading(code, 1, 'dtc');
+      log(`DTC ${code} -> ${ok ? 'registrado' : 'falhou envio'}`);
+    }
+    status(codes.length ? `${codes.length} código(s) de falha encontrado(s).` : 'Nenhum código de falha ativo.', 'ok');
+  } catch (e) {
+    log('DTC erro: ' + e);
+    status('Falha ao ler códigos: ' + e.message, 'err');
+  } finally {
+    $('btnDtc').disabled = false;
   }
 }
 

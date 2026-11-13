@@ -84,6 +84,56 @@ def test_device_cannot_write_for_another_vehicle(
     assert response.status_code == 403
 
 
+def test_accepts_dtc_reading(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    valid_reading: dict[str, object],
+) -> None:
+    dtc = {**valid_reading, "pid": "p0301", "value": 1, "unit": "dtc"}
+
+    created = client.post("/v1/telemetria", json=dtc, headers=auth_headers)
+
+    assert created.status_code == 201
+    assert created.json()["pid"] == "P0301"
+    assert created.json()["unit"] == "dtc"
+
+
+def test_rejects_dtc_with_wrong_unit(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    valid_reading: dict[str, object],
+) -> None:
+    invalid = {**valid_reading, "pid": "P0301", "value": 1, "unit": "rpm"}
+
+    response = client.post("/v1/telemetria", json=invalid, headers=auth_headers)
+
+    assert response.status_code == 422
+
+
+def test_rejects_dtc_with_invalid_value(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    valid_reading: dict[str, object],
+) -> None:
+    invalid = {**valid_reading, "pid": "P0301", "value": 5, "unit": "dtc"}
+
+    response = client.post("/v1/telemetria", json=invalid, headers=auth_headers)
+
+    assert response.status_code == 422
+
+
+def test_rejects_malformed_dtc(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    valid_reading: dict[str, object],
+) -> None:
+    invalid = {**valid_reading, "pid": "X0301", "value": 1, "unit": "dtc"}
+
+    response = client.post("/v1/telemetria", json=invalid, headers=auth_headers)
+
+    assert response.status_code == 422
+
+
 def test_wildcard_vehicle_allows_any_vehicle_id(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

@@ -220,26 +220,25 @@ components:
         pid:
           type: string
           minLength: 4
-          maxLength: 4
-          enum: ["0105", "010C", "010c", "010D", "010d"]
+          maxLength: 5
           description: >-
-            PID OBD-II aceito: 0105 (temperatura do líquido de arrefecimento),
-            010C (rotação do motor) ou 010D (velocidade). A disponibilidade depende do veículo.
+            Código OBD-II aceito: 0105 (temperatura do líquido de arrefecimento),
+            010C (rotação do motor), 010D (velocidade) ou um código de falha DTC
+            (ex.: P0301, unidade dtc, valor 0 ou 1). A disponibilidade depende do veículo.
             Letras minúsculas são aceitas e normalizadas para maiúsculas antes da validação.
-          examples: ["010C"]
+          examples: ["010C", "P0301"]
         value:
           type: number
           description: >-
             Valor já convertido para a unidade indicada. Faixas: 0105 de -40 a 215 celsius;
-            010C de 0 a 8000 rpm; 010D de 0 a 255 km/h.
+            010C de 0 a 8000 rpm; 010D de 0 a 255 km/h; DTC apenas 0 (ausente) ou 1 (presente).
           examples: [850]
         unit:
           type: string
           minLength: 1
           maxLength: 16
-          enum: [celsius, rpm, km/h]
-          description: Unidade do PID: celsius para 0105, rpm para 010C e km/h para 010D.
-          examples: [rpm]
+          description: "Unidade correspondente ao PID: 0105 usa celsius, 010C usa rpm, 010D usa km/h e DTC usa dtc."
+          examples: [rpm, dtc]
     TelemetryRead:
       type: object
       required: [event_id, vehicle_id, recorded_at, pid, value, unit]
@@ -263,7 +262,7 @@ components:
           description: Valor convertido para a unidade indicada.
         unit:
           type: string
-          description: Unidade do valor: celsius, rpm ou km/h.
+          description: "Unidade do valor: celsius, rpm, km/h ou dtc."
         duplicate:
           type: boolean
           default: false

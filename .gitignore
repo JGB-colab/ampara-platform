@@ -13,6 +13,7 @@ coverage/
 dist/
 build/
 .next/
+*.egg-info/
 
 # Local environment and secrets
 .env

@@ -73,6 +73,16 @@
   .card .value { font-size: 2rem; font-weight: 700; margin-top: 6px; }
   .card .unit { font-size: 0.85rem; color: var(--muted); }
   .card .time { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
+  .card .spark { margin-top: 8px; display: flex; justify-content: center; }
+  .card .trend { font-size: 0.75rem; margin-top: 4px; }
+  .trend.up { color: var(--warn); }
+  .trend.down { color: var(--ok); }
+  .trend.flat { color: var(--muted); }
+  .alerts { display: grid; gap: 10px; margin-top: 12px; }
+  .alert { padding: 12px 14px; border-radius: 8px; font-size: 0.88rem; }
+  .alert.ok { background: #1d3a24; color: var(--ok); }
+  .alert.warn { background: #3a2f1d; color: var(--warn); }
+  .alert.bad { background: #3a1d1d; color: var(--bad); }
 
   table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #2a3450; }
@@ -113,6 +123,17 @@
 
   <div id="dashboard" class="hidden">
     <div class="cards" id="cards"></div>
+
+    <div class="panel" id="alertsPanel">
+      <strong>Alertas preditivos <span style="color:var(--muted); font-weight:400; font-size:0.78rem">(regras de tendência sobre as últimas leituras — não é diagnóstico)</span></strong>
+      <div class="alerts" id="alerts"></div>
+    </div>
+
+    <div class="panel" id="dtcPanel">
+      <strong>Códigos de falha (DTC)</strong>
+      <div id="dtcList" style="margin-top:10px; font-family:monospace; font-size:0.9rem; color:var(--bad)"></div>
+      <p id="dtcEmpty" style="color:var(--muted); padding:8px 0;">Nenhum código reportado ainda.</p>
+    </div>
 
     <div class="panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -191,12 +212,106 @@ function latestByPid(data) {
   return map;
 }
 
+// Histórico por PID, do mais antigo para o mais recente (para gráfico e tendência).
+function historyByPid(data) {
+  const map = {};
+  for (const r of data) {
+    (map[r.pid] = map[r.pid] || []).push(r);
+  }
+  for (const pid of Object.keys(map)) {
+    map[pid].sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at));
+  }
+  return map;
+}
+
+// Gráfico minúsculo (sparkline) dos últimos valores; devolve SVG.
+function sparkline(values, w = 140, h = 36) {
+  if (values.length < 2) return '';
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = (max - min) || 1;
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(h - 3 - ((v - min) / span) * (h - 6)).toFixed(1)}`);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="tendência">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="#f5a623" stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+}
+
+// Direção da tendência: compara a média da 1ª metade com a 2ª metade das leituras.
+function trendOf(values) {
+  if (values.length < 3) return { dir: 'flat', label: '—' };
+  const half = Math.floor(values.length / 2);
+  const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+  const delta = avg(values.slice(half)) - avg(values.slice(0, half));
+  const ref = Math.abs(avg(values)) || 1;
+  if (delta / ref > 0.05) return { dir: 'up', label: 'subindo ↑' };
+  if (delta / ref < -0.05) return { dir: 'down', label: 'descendo ↓' };
+  return { dir: 'flat', label: 'estável →' };
+}
+
+// Regras de tendência (documentadas como heurística, não diagnóstico).
+function buildAlerts(hist) {
+  const alerts = [];
+  const temp = (hist['0105'] || []).map(r => r.value);
+  const rpm = (hist['010C'] || []).map(r => r.value);
+  const speed = (hist['010D'] || []).map(r => r.value);
+
+  if (temp.length >= 3) {
+    const last = temp[temp.length - 1];
+    const trend = trendOf(temp);
+    if (last >= 105) {
+      alerts.push({ level: 'bad', text: `Temperatura do refrigerante em ${last} °C — acima do normal (≥105 °C). Verifique o veículo.` });
+    } else if (trend.dir === 'up' && last >= 95) {
+      alerts.push({ level: 'warn', text: `Temperatura subindo e em ${last} °C — tendência de aquecimento. Acompanhe.` });
+    }
+  }
+
+  if (rpm.length >= 3) {
+    const last = rpm[rpm.length - 1];
+    if (last >= 6000) {
+      alerts.push({ level: 'warn', text: `Rotação alta sustentada (${last} rpm) — atenção à carga do motor.` });
+    }
+  }
+
+  if (speed.length >= 3) {
+    const trend = trendOf(speed);
+    const last = speed[speed.length - 1];
+    if (trend.dir === 'up' && last >= 100) {
+      alerts.push({ level: 'ok', text: `Velocidade em aceleração (${last} km/h) — comportamento normal de condução.` });
+    }
+  }
+
+  if (alerts.length === 0) {
+    alerts.push({ level: 'ok', text: 'Sem sinais de risco nas últimas leituras.' });
+  }
+  return alerts;
+}
+
+const DTC_LABELS = {
+  'P0301': 'Falha de ignição — cilindro 1',
+  'P0302': 'Falha de ignição — cilindro 2',
+  'P0303': 'Falha de ignição — cilindro 3',
+  'P0304': 'Falha de ignição — cilindro 4',
+  'P0420': 'Eficiência do catalisador abaixo do esperado',
+  'P0171': 'Mistura combustível/ar muito pobre (banco 1)',
+  'P0172': 'Mistura combustível/ar muito rica (banco 1)',
+  'P0128': 'Termostato não atingindo temperatura ideal',
+  'P0442': 'Circuito do sensor de nível de combustível',
+  'C0035': 'Sensor de velocidade das rodas dianteiras',
+  'U0100': 'Perda de comunicação com a ECU',
+};
+
+const DTC_RE = /^[PCBU][0-9A-F]{4}$/;
+
 function render(data) {
   const latest = latestByPid(data);
+  const hist = historyByPid(data);
   const cardsEl = document.getElementById('cards');
   cardsEl.innerHTML = '';
   for (const [pid, info] of Object.entries(PID_LABELS)) {
     const r = latest[pid];
+    const values = (hist[pid] || []).map(x => x.value);
+    const trend = trendOf(values);
     const card = document.createElement('div');
     card.className = 'card';
     if (r) {
@@ -204,6 +319,8 @@ function render(data) {
         <div class="label">${info.name}</div>
         <div class="value">${r.value}</div>
         <div class="unit">${info.unit}</div>
+        <div class="spark">${sparkline(values)}</div>
+        <div class="trend ${trend.dir}">${trend.label}</div>
         <div class="time">${new Date(r.recorded_at).toLocaleString('pt-BR')}</div>`;
     } else {
       card.innerHTML = `
@@ -212,6 +329,41 @@ function render(data) {
         <div class="unit">${info.unit}</div>`;
     }
     cardsEl.appendChild(card);
+  }
+
+  // Alertas preditivos por tendência
+  const alertsEl = document.getElementById('alerts');
+  alertsEl.innerHTML = '';
+  for (const a of buildAlerts(hist)) {
+    const div = document.createElement('div');
+    div.className = 'alert ' + a.level;
+    div.textContent = a.text;
+    alertsEl.appendChild(div);
+  }
+
+  // DTCs: mantém apenas o evento mais recente por código com valor 1
+  const dtcs = new Map();
+  for (const r of data) {
+    if (DTC_RE.test(r.pid) && r.value === 1) {
+      const prev = dtcs.get(r.pid);
+      if (!prev || new Date(r.recorded_at) > new Date(prev.recorded_at)) dtcs.set(r.pid, r);
+    }
+  }
+  const dtcList = document.getElementById('dtcList');
+  const dtcEmpty = document.getElementById('dtcEmpty');
+  dtcList.innerHTML = '';
+  if (dtcs.size === 0) {
+    dtcEmpty.style.display = 'block';
+  } else {
+    dtcEmpty.style.display = 'none';
+    for (const [code, r] of [...dtcs.entries()].sort()) {
+      const label = DTC_LABELS[code] || 'Código não catalogado';
+      const div = document.createElement('div');
+      div.style.marginBottom = '6px';
+      div.innerHTML = `<strong>${code}</strong> — ${label}<br>
+        <span style="color:var(--muted); font-size:0.78rem">detectado em ${new Date(r.recorded_at).toLocaleString('pt-BR')}</span>`;
+      dtcList.appendChild(div);
+    }
   }
 
   const tbody = document.getElementById('tbody');

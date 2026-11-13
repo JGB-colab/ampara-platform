@@ -28,29 +28,29 @@ class TelemetryCreate(BaseModel):
     )
     pid: str = Field(
         min_length=4,
-        max_length=4,
+        max_length=5,
         description=(
             "Código OBD-II aceito: 0105 (temperatura do líquido de arrefecimento), "
-            "010C (rotação do motor) ou 010D (velocidade). A disponibilidade depende do veículo. "
-            "Letras minúsculas são aceitas e normalizadas para maiúsculas antes da validação."
+            "010C (rotação do motor), 010D (velocidade) ou um código de falha DTC "
+            "(ex.: P0301, unidade dtc, valor 0 ou 1). "
+            "A disponibilidade depende do veículo. Letras minúsculas são aceitas e normalizadas."
         ),
-        json_schema_extra={"enum": ["0105", "010C", "010c", "010D", "010d"]},
-        examples=["010C"],
+        examples=["010C", "P0301"],
     )
     value: float = Field(
         allow_inf_nan=False,
         description=(
             "Valor numérico já convertido para a unidade indicada. Faixas aceitas: "
-            "0105 de -40 a 215 celsius; 010C de 0 a 8000 rpm; 010D de 0 a 255 km/h."
+            "0105 de -40 a 215 celsius; 010C de 0 a 8000 rpm; 010D de 0 a 255 km/h; "
+            "DTC apenas 0 (ausente) ou 1 (presente)."
         ),
         examples=[850],
     )
     unit: str = Field(
         min_length=1,
         max_length=16,
-        description="Unidade correspondente ao PID: 0105 usa celsius, 010C usa rpm e 010D usa km/h.",
-        json_schema_extra={"enum": ["celsius", "rpm", "km/h"]},
-        examples=["rpm"],
+        description="Unidade correspondente ao PID: 0105 usa celsius, 010C usa rpm, 010D usa km/h e DTC usa dtc.",
+        examples=["rpm", "dtc"],
     )
 
     @field_validator("recorded_at")

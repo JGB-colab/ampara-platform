@@ -4,7 +4,7 @@ Este é o plano de execução e a fonte de verdade do progresso. Os critérios d
 
 ## Estado atual
 
-**Etapa 0 concluída; Etapas 1 e 2 em validação.** O recorte funcional e o contrato foram revisados e alinhados entre implementação, OpenAPI gerado e `docs/openapi.yaml`. O repositório contém API FastAPI, persistência PostgreSQL com Alembic, testes pytest, Docker Compose e pipeline GitHub Actions configurado. Os testes unitários e um teste de integração PostgreSQL passaram localmente; o workflow hospedado, smoke test e proteção de branch ainda não foram verificados.
+**Entrega de nível B concluída e evolução pós-B em andamento.** As Etapas 0–5 estão concluídas com evidência na `main` (CI verde, PRs mergeados) e a Etapa 6 iniciada como evolução (Terraform: Cloudflare Tunnel + DNS). A API, o banco e o dashboard rodam em produção no Render (`docs/deploy.md`) com DNS no Cloudflare; observabilidade (Prometheus/Grafana) permanece local via profile `observability`. Depois da entrega B, entraram na `main` a interface web do motorista, o coletor ELM327 (Web Bluetooth no celular e python-OBD no PC), a identificação do veículo por VIN e o deploy em produção. O suporte a códigos de falha (DTC) está implementado localmente, com testes e lint verdes, aguardando consolidação em PR.
 
 O desenvolvimento começa pelo núcleo funcional que também atende ao nível B. Isso não fixa a classificação final: antes da entrega, declarar A somente se todas as evidências A aplicáveis estiverem completas e aceitas; caso contrário, declarar B e entregar o núcleo com qualidade. Depois do prazo, o mesmo projeto pode continuar evoluindo em direção ao A. Se um item avançado ameaçar funcionamento, testes ou CI, ele fica para depois.
 
@@ -194,3 +194,14 @@ Atualizar este arquivo ao concluir uma etapa, com data, evidência (commit, PR, 
 - **Estado das etapas:** 0, 1, 2, 3, 4 e 5 com evidência na `main`; Etapa 6 (Terraform) e Etapa 7 formalmente fechada como entrega nível B em 2026-11-11.
 - **Observação de ambiente:** porta 3000 do host estava ocupada por serviço do Windows; Grafana publicado em `127.0.0.1:3300`.
 - **Lacunas conhecidas registradas:** sem logging estruturado, sem SLO formal, gestão de segredos apenas local (.env), OpenAPI estático pode dessincronizar do gerado — candidatas a evolução pós-entrega.
+
+### Checkpoint — 2026-11-13 (consolidação e fechamento)
+
+- **Teste real no carro:** o usuário testou com dongle ELM327 no veículo; o Car Scanner conecta e valida o carro/dongle. No nosso `/coletor` (Web Bluetooth) nada apareceu ao conectar — causa mais provável: adaptador Bluetooth clássico/SPP (não BLE) e/ou página fora de HTTPS; deixar isso explícito na UI ficou como evolução pendente. O token de leitura testado contra o Render retornou 401 (`Credencial de dispositivo inválida`): o valor enviado não confere com `AMAPARA_DEVICE_TOKEN` do serviço.
+- **Deploy:** app no Render (Web Service + Postgres gerenciado) com DNS no Cloudflare — `https://ampara-platform.onrender.com` respondeu `/health` = ok (com cold start do plano free). `AMAPARA_ALLOWED_VEHICLE_ID=*` no serviço, ou seja, qualquer `vehicle_id`/VIN é aceito; 401 depende só do token.
+- **Trabalho local (DTC):** suporte a códigos de falha SAE J2012 (`P/C/B/U` + 4 hex, unidade `dtc`, valor 0/1) em `domain.py`/`schemas.py`/`models.py` + migração `0002_widen_pid_for_dtc.py`, coletor `--dtc`, telas e testes. `ruff` e `pytest -m "not integration"` verdes (18 passed, 4 deselected).
+- **Correção de bug:** unidade do PID 0105 no `scripts/coletor.py` era `°C`, mas o domínio exige `celsius` — toda leitura de temperatura seria rejeitada com 422. Corrigido para `celsius`.
+- **`docs/openapi.yaml`:** tinha erro de sintaxe YAML (dois-pontos sem aspas em `description`) e estava dessincronizado do contrato DTC (enums e `maxLength`). Corrigido e validado: OpenAPI 3.1.0 com os 3 paths.
+- **Documentação de fechamento:** `CONTRIBUTORS.md` atualizado com PRs #4–#12; `docs/ia.md` com os ciclos de deploy/Terraform/UI/coletor/assistente; estado atual de `milestones.md` corrigido.
+- **Assistente de coleta:** criado `scripts/iniciar-coleta.ps1` (guiado por máquina: Python/venv/`obd`, URL da nuvem, token mascarado, teste de credenciais, detecção de COM via `ATZ`, início do coletor).
+- **Pendente:** dashboards preditivos no dashboard do motorista; consolidação em commit/PR com CI verde; tornar `/coletor` explícito sobre suporte Web Bluetooth (BLE vs clássico/HTTPS).

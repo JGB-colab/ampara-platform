@@ -121,7 +121,9 @@ export class ELM327 {
     let lastError: unknown = null;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
-        await RNBluetoothClassic.connectToDevice(address);
+        // Muitos ELM327 (clones) só aceitam RFCOMM inseguro; socket seguro falha com
+        // "read failed, socket might closed or timeout" em alguns adaptadores.
+        await RNBluetoothClassic.connectToDevice(address, { secureSocket: false });
         this.address = address;
         this.buffer = '';
         this.subscription = RNBluetoothClassic.onDeviceRead(address, (event) => {

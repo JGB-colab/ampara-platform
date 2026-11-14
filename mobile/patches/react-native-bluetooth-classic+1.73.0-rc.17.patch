@@ -1,0 +1,56 @@
+diff --git a/node_modules/react-native-bluetooth-classic/android/src/main/java/kjd/reactnative/bluetooth/receiver/PairingReceiver.java b/node_modules/react-native-bluetooth-classic/android/src/main/java/kjd/reactnative/bluetooth/receiver/PairingReceiver.java
+index fef8352..df07291 100644
+--- a/node_modules/react-native-bluetooth-classic/android/src/main/java/kjd/reactnative/bluetooth/receiver/PairingReceiver.java
++++ b/node_modules/react-native-bluetooth-classic/android/src/main/java/kjd/reactnative/bluetooth/receiver/PairingReceiver.java
+@@ -11,7 +11,6 @@ import android.util.Log;
+ import com.facebook.react.bridge.LifecycleEventListener;
+ import com.facebook.react.bridge.ReactApplicationContext;
+ 
+-import kjd.reactnative.bluetooth.BuildConfig;
+ import kjd.reactnative.bluetooth.device.NativeDevice;
+ 
+ /**
+@@ -45,13 +44,13 @@ public class PairingReceiver extends BroadcastReceiver
+             final NativeDevice wrapper = new NativeDevice(device);
+ 
+             if (state == BluetoothDevice.BOND_BONDED) {
+-                if (BuildConfig.DEBUG)
++                if (false)
+                     Log.d(TAG, String.format("Successfully paired with device %s", device.getAddress()));
+ 
+                 mCallback.onPairingSuccess(wrapper);
+                 context.unregisterReceiver(this);
+             } else if (state == BluetoothDevice.BOND_NONE){
+-                if (BuildConfig.DEBUG)
++                if (false)
+                     Log.d(TAG, String.format("Completed un-pairing with device %s", device.getAddress()));
+ 
+                 mCallback.onPairingSuccess(wrapper);
+diff --git a/node_modules/react-native-bluetooth-classic/android/src/main/java/kjd/reactnative/bluetooth/receiver/StateChangeReceiver.java b/node_modules/react-native-bluetooth-classic/android/src/main/java/kjd/reactnative/bluetooth/receiver/StateChangeReceiver.java
+index e797b85..36584a7 100644
+--- a/node_modules/react-native-bluetooth-classic/android/src/main/java/kjd/reactnative/bluetooth/receiver/StateChangeReceiver.java
++++ b/node_modules/react-native-bluetooth-classic/android/src/main/java/kjd/reactnative/bluetooth/receiver/StateChangeReceiver.java
+@@ -9,7 +9,6 @@ import android.util.Log;
+ 
+ import kjd.reactnative.bluetooth.RNBluetoothClassicModule;
+ import kjd.reactnative.bluetooth.BluetoothState;
+-import kjd.reactnative.bluetooth.BuildConfig;
+ 
+ /**
+  * Provides listening to {@link BluetoothAdapter#ACTION_STATE_CHANGED} events.
+@@ -38,13 +37,13 @@ public class StateChangeReceiver extends BroadcastReceiver {
+ 
+             switch (state) {
+                 case BluetoothAdapter.STATE_OFF:
+-                    if (BuildConfig.DEBUG)
++                    if (false)
+                         Log.d(this.getClass().getSimpleName(), "Bluetooth is now disabled");
+ 
+                     mCallback.onStateChange(BluetoothState.DISABLED, BluetoothState.ENABLED);
+                     break;
+                 case BluetoothAdapter.STATE_ON:
+-                    if (BuildConfig.DEBUG)
++                    if (false)
+                         Log.d(this.getClass().getSimpleName(), "Bluetooth is now enabled");
+ 
+                     mCallback.onStateChange(BluetoothState.ENABLED, BluetoothState.DISABLED);

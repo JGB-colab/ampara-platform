@@ -21,6 +21,22 @@ export class ObdError extends Error {}
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new ObdError(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 interface Waiter {
   resolve: (text: string) => void;
   reject: (error: Error) => void;
@@ -123,7 +139,11 @@ export class ELM327 {
       try {
         // Muitos ELM327 (clones) só aceitam RFCOMM inseguro; socket seguro falha com
         // "read failed, socket might closed or timeout" em alguns adaptadores.
-        await RNBluetoothClassic.connectToDevice(address, { secureSocket: false });
+        await withTimeout(
+          RNBluetoothClassic.connectToDevice(address, { secureSocket: false }),
+          12000,
+          'Tempo esgotado ao abrir conexão Bluetooth com o dongle.',
+        );
         this.address = address;
         this.buffer = '';
         this.subscription = RNBluetoothClassic.onDeviceRead(address, (event) => {

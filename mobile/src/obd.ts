@@ -139,9 +139,11 @@ export class ELM327 {
       try {
         // Muitos ELM327 (clones) só aceitam RFCOMM inseguro; socket seguro falha com
         // "read failed, socket might closed or timeout" em alguns adaptadores.
+        // O nativo lê "secure"/"SECURE_SOCKET" ("secureSocket" é ignorada). delimiter '' entrega
+        // bytes crus no onDeviceRead: o padrão "\n" retém respostas que terminam em ">" sem "\n".
         await withTimeout(
-          RNBluetoothClassic.connectToDevice(address, { secureSocket: false }),
-          12000,
+          RNBluetoothClassic.connectToDevice(address, { secure: false, delimiter: '' }),
+          30000,
           'Tempo esgotado ao abrir conexão Bluetooth com o dongle.',
         );
         this.address = address;
@@ -155,6 +157,8 @@ export class ELM327 {
       } catch (exc) {
         lastError = exc;
         await this.disconnect().catch(() => undefined);
+        // Se a falha ocorreu antes de this.address ser definido, disconnect() não fecha o socket nativo.
+        await RNBluetoothClassic.disconnectFromDevice(address).catch(() => undefined);
         if (attempt < attempts) await sleep(delayMs);
       }
     }
